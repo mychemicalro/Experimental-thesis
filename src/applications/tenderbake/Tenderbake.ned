@@ -1,0 +1,56 @@
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Lesser General Public License for more details.
+// 
+// You should have received a copy of the GNU Lesser General Public License
+// along with this program.  If not, see http://www.gnu.org/licenses/.
+// 
+
+package oversim.applications.tenderbake;
+
+// import BaseApp
+import oversim.common.BaseApp;
+
+simple Tenderbake extends BaseApp
+{
+    parameters:
+        @class(Tenderbake);
+        int k = default(2); 					   // number of nodes to whom gossip a message
+        double joinDelay @unit(s) = default(1s);   // seconds before the application tries to join the network 
+}
+
+import oversim.common.ITier;
+
+module TenderbakeApplicationModules like ITier
+{
+    gates:
+        input udpIn;             // gate from the UDP layer
+        output udpOut;           // gate to the UDP layer
+        input from_lowerTier;    // gate from the lower tier
+        input from_upperTier;    // gate from the upper tier
+        output to_lowerTier;     // gate to the lower tier
+        output to_upperTier;     // gate to the upper tier
+        input trace_in;          // gate for trace file commands
+        input tcpIn;             // gate from the TCP layer
+        output tcpOut;           // gate to the TCP layer
+
+    submodules:
+        tenderbake: Tenderbake;
+
+    connections allowunconnected:
+        from_lowerTier --> tenderbake.from_lowerTier;
+        to_lowerTier <-- tenderbake.to_lowerTier;
+        udpIn --> tenderbake.udpIn;
+        udpOut <-- tenderbake.udpOut;
+        tcpIn --> tenderbake.tcpIn;
+        tcpOut <-- tenderbake.tcpOut;
+        trace_in --> tenderbake.trace_in;
+}
+
