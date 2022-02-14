@@ -13,7 +13,7 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package oversim.applications.tenderbake;
+package oversim.applications.pbft;
 
 import oversim.common.BaseApp;
 
@@ -21,17 +21,17 @@ simple Blockchain{
 	@display("i=block/buffer");
 }
 
-simple Tenderbake extends BaseApp
+simple PBFT extends BaseApp
 {
     parameters:
-        @class(Tenderbake);
+        @class(PBFT);
         int k = default(2); 					   // number of nodes to whom gossip a message
         double joinDelay @unit(s) = default(1s);   // seconds before the application tries to join the network 
 }
 
 import oversim.common.ITier;
 
-module TenderbakeApplicationModules like ITier
+module PBFTApplicationModules like ITier
 {
     gates:
         input udpIn;             // gate from the UDP layer
@@ -45,7 +45,7 @@ module TenderbakeApplicationModules like ITier
         output tcpOut;           // gate to the TCP layer
 
     submodules:
-        tenderbake: Tenderbake{
+        pbft: PBFT{
         	parameters:
                 @display("p=60,60");
         }
@@ -55,12 +55,12 @@ module TenderbakeApplicationModules like ITier
         }
 
     connections allowunconnected:
-        from_lowerTier --> tenderbake.from_lowerTier;
-        to_lowerTier <-- tenderbake.to_lowerTier;
-        udpIn --> tenderbake.udpIn;
-        udpOut <-- tenderbake.udpOut;
-        tcpIn --> tenderbake.tcpIn;
-        tcpOut <-- tenderbake.tcpOut;
-        trace_in --> tenderbake.trace_in;
+        from_lowerTier --> pbft.from_lowerTier;
+        to_lowerTier <-- pbft.to_lowerTier;
+        udpIn --> pbft.udpIn;
+        udpOut <-- pbft.udpOut;
+        tcpIn --> pbft.tcpIn;
+        tcpOut <-- pbft.tcpOut;
+        trace_in --> pbft.trace_in;
 }
 

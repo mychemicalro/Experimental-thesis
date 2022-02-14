@@ -1,5 +1,5 @@
 //
-// Generated file, do not edit! Created by opp_msgc 4.2 from applications/tenderbake/TenderbakeMessage.msg.
+// Generated file, do not edit! Created by opp_msgc 4.2 from applications/pbft/PBFTMessage.msg.
 //
 
 // Disable warnings about unused variables, empty switch stmts, etc:
@@ -10,7 +10,7 @@
 
 #include <iostream>
 #include <sstream>
-#include "TenderbakeMessage_m.h"
+#include "PBFTMessage_m.h"
 
 // Template rule which fires if a struct or class doesn't have operator<<
 template<typename T>
@@ -37,23 +37,23 @@ EXECUTE_ON_STARTUP(
     e->insert(MYMSG_PONG, "MYMSG_PONG");
 );
 
-Register_Class(TenderbakeMessage);
+Register_Class(PBFTMessage);
 
-TenderbakeMessage::TenderbakeMessage(const char *name, int kind) : cPacket(name,kind)
+PBFTMessage::PBFTMessage(const char *name, int kind) : cPacket(name,kind)
 {
     this->type_var = 0;
 }
 
-TenderbakeMessage::TenderbakeMessage(const TenderbakeMessage& other) : cPacket(other)
+PBFTMessage::PBFTMessage(const PBFTMessage& other) : cPacket(other)
 {
     copy(other);
 }
 
-TenderbakeMessage::~TenderbakeMessage()
+PBFTMessage::~PBFTMessage()
 {
 }
 
-TenderbakeMessage& TenderbakeMessage::operator=(const TenderbakeMessage& other)
+PBFTMessage& PBFTMessage::operator=(const PBFTMessage& other)
 {
     if (this==&other) return *this;
     cPacket::operator=(other);
@@ -61,51 +61,51 @@ TenderbakeMessage& TenderbakeMessage::operator=(const TenderbakeMessage& other)
     return *this;
 }
 
-void TenderbakeMessage::copy(const TenderbakeMessage& other)
+void PBFTMessage::copy(const PBFTMessage& other)
 {
     this->type_var = other.type_var;
     this->senderAddress_var = other.senderAddress_var;
 }
 
-void TenderbakeMessage::parsimPack(cCommBuffer *b)
+void PBFTMessage::parsimPack(cCommBuffer *b)
 {
     cPacket::parsimPack(b);
     doPacking(b,this->type_var);
     doPacking(b,this->senderAddress_var);
 }
 
-void TenderbakeMessage::parsimUnpack(cCommBuffer *b)
+void PBFTMessage::parsimUnpack(cCommBuffer *b)
 {
     cPacket::parsimUnpack(b);
     doUnpacking(b,this->type_var);
     doUnpacking(b,this->senderAddress_var);
 }
 
-int TenderbakeMessage::getType() const
+int PBFTMessage::getType() const
 {
     return type_var;
 }
 
-void TenderbakeMessage::setType(int type)
+void PBFTMessage::setType(int type)
 {
     this->type_var = type;
 }
 
-TransportAddress& TenderbakeMessage::getSenderAddress()
+TransportAddress& PBFTMessage::getSenderAddress()
 {
     return senderAddress_var;
 }
 
-void TenderbakeMessage::setSenderAddress(const TransportAddress& senderAddress)
+void PBFTMessage::setSenderAddress(const TransportAddress& senderAddress)
 {
     this->senderAddress_var = senderAddress;
 }
 
-class TenderbakeMessageDescriptor : public cClassDescriptor
+class PBFTMessageDescriptor : public cClassDescriptor
 {
   public:
-    TenderbakeMessageDescriptor();
-    virtual ~TenderbakeMessageDescriptor();
+    PBFTMessageDescriptor();
+    virtual ~PBFTMessageDescriptor();
 
     virtual bool doesSupport(cObject *obj) const;
     virtual const char *getProperty(const char *propertyname) const;
@@ -124,34 +124,34 @@ class TenderbakeMessageDescriptor : public cClassDescriptor
     virtual void *getFieldStructPointer(void *object, int field, int i) const;
 };
 
-Register_ClassDescriptor(TenderbakeMessageDescriptor);
+Register_ClassDescriptor(PBFTMessageDescriptor);
 
-TenderbakeMessageDescriptor::TenderbakeMessageDescriptor() : cClassDescriptor("TenderbakeMessage", "cPacket")
+PBFTMessageDescriptor::PBFTMessageDescriptor() : cClassDescriptor("PBFTMessage", "cPacket")
 {
 }
 
-TenderbakeMessageDescriptor::~TenderbakeMessageDescriptor()
+PBFTMessageDescriptor::~PBFTMessageDescriptor()
 {
 }
 
-bool TenderbakeMessageDescriptor::doesSupport(cObject *obj) const
+bool PBFTMessageDescriptor::doesSupport(cObject *obj) const
 {
-    return dynamic_cast<TenderbakeMessage *>(obj)!=NULL;
+    return dynamic_cast<PBFTMessage *>(obj)!=NULL;
 }
 
-const char *TenderbakeMessageDescriptor::getProperty(const char *propertyname) const
+const char *PBFTMessageDescriptor::getProperty(const char *propertyname) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
     return basedesc ? basedesc->getProperty(propertyname) : NULL;
 }
 
-int TenderbakeMessageDescriptor::getFieldCount(void *object) const
+int PBFTMessageDescriptor::getFieldCount(void *object) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
     return basedesc ? 2+basedesc->getFieldCount(object) : 2;
 }
 
-unsigned int TenderbakeMessageDescriptor::getFieldTypeFlags(void *object, int field) const
+unsigned int PBFTMessageDescriptor::getFieldTypeFlags(void *object, int field) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
     if (basedesc) {
@@ -166,7 +166,7 @@ unsigned int TenderbakeMessageDescriptor::getFieldTypeFlags(void *object, int fi
     return (field>=0 && field<2) ? fieldTypeFlags[field] : 0;
 }
 
-const char *TenderbakeMessageDescriptor::getFieldName(void *object, int field) const
+const char *PBFTMessageDescriptor::getFieldName(void *object, int field) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
     if (basedesc) {
@@ -181,7 +181,7 @@ const char *TenderbakeMessageDescriptor::getFieldName(void *object, int field) c
     return (field>=0 && field<2) ? fieldNames[field] : NULL;
 }
 
-int TenderbakeMessageDescriptor::findField(void *object, const char *fieldName) const
+int PBFTMessageDescriptor::findField(void *object, const char *fieldName) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
     int base = basedesc ? basedesc->getFieldCount(object) : 0;
@@ -190,7 +190,7 @@ int TenderbakeMessageDescriptor::findField(void *object, const char *fieldName) 
     return basedesc ? basedesc->findField(object, fieldName) : -1;
 }
 
-const char *TenderbakeMessageDescriptor::getFieldTypeString(void *object, int field) const
+const char *PBFTMessageDescriptor::getFieldTypeString(void *object, int field) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
     if (basedesc) {
@@ -205,7 +205,7 @@ const char *TenderbakeMessageDescriptor::getFieldTypeString(void *object, int fi
     return (field>=0 && field<2) ? fieldTypeStrings[field] : NULL;
 }
 
-const char *TenderbakeMessageDescriptor::getFieldProperty(void *object, int field, const char *propertyname) const
+const char *PBFTMessageDescriptor::getFieldProperty(void *object, int field, const char *propertyname) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
     if (basedesc) {
@@ -221,7 +221,7 @@ const char *TenderbakeMessageDescriptor::getFieldProperty(void *object, int fiel
     }
 }
 
-int TenderbakeMessageDescriptor::getArraySize(void *object, int field) const
+int PBFTMessageDescriptor::getArraySize(void *object, int field) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
     if (basedesc) {
@@ -229,13 +229,13 @@ int TenderbakeMessageDescriptor::getArraySize(void *object, int field) const
             return basedesc->getArraySize(object, field);
         field -= basedesc->getFieldCount(object);
     }
-    TenderbakeMessage *pp = (TenderbakeMessage *)object; (void)pp;
+    PBFTMessage *pp = (PBFTMessage *)object; (void)pp;
     switch (field) {
         default: return 0;
     }
 }
 
-std::string TenderbakeMessageDescriptor::getFieldAsString(void *object, int field, int i) const
+std::string PBFTMessageDescriptor::getFieldAsString(void *object, int field, int i) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
     if (basedesc) {
@@ -243,7 +243,7 @@ std::string TenderbakeMessageDescriptor::getFieldAsString(void *object, int fiel
             return basedesc->getFieldAsString(object,field,i);
         field -= basedesc->getFieldCount(object);
     }
-    TenderbakeMessage *pp = (TenderbakeMessage *)object; (void)pp;
+    PBFTMessage *pp = (PBFTMessage *)object; (void)pp;
     switch (field) {
         case 0: return long2string(pp->getType());
         case 1: {std::stringstream out; out << pp->getSenderAddress(); return out.str();}
@@ -251,7 +251,7 @@ std::string TenderbakeMessageDescriptor::getFieldAsString(void *object, int fiel
     }
 }
 
-bool TenderbakeMessageDescriptor::setFieldAsString(void *object, int field, int i, const char *value) const
+bool PBFTMessageDescriptor::setFieldAsString(void *object, int field, int i, const char *value) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
     if (basedesc) {
@@ -259,14 +259,14 @@ bool TenderbakeMessageDescriptor::setFieldAsString(void *object, int field, int 
             return basedesc->setFieldAsString(object,field,i,value);
         field -= basedesc->getFieldCount(object);
     }
-    TenderbakeMessage *pp = (TenderbakeMessage *)object; (void)pp;
+    PBFTMessage *pp = (PBFTMessage *)object; (void)pp;
     switch (field) {
         case 0: pp->setType(string2long(value)); return true;
         default: return false;
     }
 }
 
-const char *TenderbakeMessageDescriptor::getFieldStructName(void *object, int field) const
+const char *PBFTMessageDescriptor::getFieldStructName(void *object, int field) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
     if (basedesc) {
@@ -281,7 +281,7 @@ const char *TenderbakeMessageDescriptor::getFieldStructName(void *object, int fi
     return (field>=0 && field<2) ? fieldStructNames[field] : NULL;
 }
 
-void *TenderbakeMessageDescriptor::getFieldStructPointer(void *object, int field, int i) const
+void *PBFTMessageDescriptor::getFieldStructPointer(void *object, int field, int i) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
     if (basedesc) {
@@ -289,7 +289,7 @@ void *TenderbakeMessageDescriptor::getFieldStructPointer(void *object, int field
             return basedesc->getFieldStructPointer(object, field, i);
         field -= basedesc->getFieldCount(object);
     }
-    TenderbakeMessage *pp = (TenderbakeMessage *)object; (void)pp;
+    PBFTMessage *pp = (PBFTMessage *)object; (void)pp;
     switch (field) {
         case 1: return (void *)(&pp->getSenderAddress()); break;
         default: return NULL;

@@ -1,6 +1,6 @@
 
 /*
- * Tenderbake.cc
+ * PBFT.cc
  *
  *  Created on: 30/nov/2021
  *      Author: DinuFC
@@ -9,16 +9,16 @@
 #include <string>
 #include "UnderlayConfigurator.h"
 #include "GlobalStatistics.h"
-#include "TenderbakeMessage_m.h"
-#include "Tenderbake.h"
+#include "PBFTMessage_m.h"
+#include "PBFT.h"
 #include "Blockchain.h"
 
 #define DEBUG true
 
-Define_Module(Tenderbake);
+Define_Module(PBFT);
 
 
-void Tenderbake::initializeApp(int stage){
+void PBFT::initializeApp(int stage){
     // initializeApp will be called twice, each with a different stage.
     // stage can be either MIN_STAGE_APP (this module is being created), or MAX_STAGE_APP (all modules were created).
     // We only care about MIN_STAGE_APP here.
@@ -49,7 +49,7 @@ void Tenderbake::initializeApp(int stage){
 }
 
 
-void Tenderbake::changeState(States toState){
+void PBFT::changeState(States toState){
     if (DEBUG)
         EV << "[PBFT::changeState() @ " << thisNode.getIp()
            << " New state: " << toState
@@ -119,7 +119,7 @@ void Tenderbake::changeState(States toState){
 }
 
 
-void Tenderbake::handleTimerEvent(cMessage* msg) {
+void PBFT::handleTimerEvent(cMessage* msg) {
     if (msg == joinTimer) {
 
         /*if (underlayConfigurator->isInInitPhase()){
@@ -144,11 +144,11 @@ void Tenderbake::handleTimerEvent(cMessage* msg) {
 }
 
 
-void Tenderbake::findFriendModules(){
+void PBFT::findFriendModules(){
     chainModule = check_and_cast<Blockchain*> (getParentModule()->getSubmodule("chain"));
 }
 
-void Tenderbake::initializeFriendModules(){
+void PBFT::initializeFriendModules(){
     chainModule->initializeChain();
 
 }
@@ -156,12 +156,12 @@ void Tenderbake::initializeFriendModules(){
 
 // deliver is called when we receive a message from the overlay.
 // TODO This method will never be called in my application
-void Tenderbake::deliver(OverlayKey& key, cMessage* msg) {
+void PBFT::deliver(OverlayKey& key, cMessage* msg) {
     if(DEBUG)
         EV << "[PBFT::deliver() @ " << thisNode.getIp()
            << "Delivered a message"
            << endl;
-    // TenderbakeMessage *myMsg = dynamic_cast<TenderbakeMessage*>(msg);
+    // PBFTMessage *myMsg = dynamic_cast<PBFTMessage*>(msg);
 
     delete msg;
 }
@@ -169,18 +169,18 @@ void Tenderbake::deliver(OverlayKey& key, cMessage* msg) {
 // handleUDPMessage is called when we receive a message from UDP.
 // Parameter msg is actually of type cPacket*, set to the more generic cMessage* for legacy purposes.
 
-void Tenderbake::handleUDPMessage(cMessage* msg) {
+void PBFT::handleUDPMessage(cMessage* msg) {
     if(DEBUG)
         EV << "[PBFT::handleUDPMessage() @ " << thisNode.getIp()
            << " Received a message"
            << endl;
 
-    // TenderbakeMessage *myMsg = dynamic_cast<TenderbakeMessage*>(msg);
+    // PBFTMessage *myMsg = dynamic_cast<PBFTMessage*>(msg);
 
     delete msg;
 }
 
-void Tenderbake::update(const NodeHandle& node, bool joined){
+void PBFT::update(const NodeHandle& node, bool joined){
     if(DEBUG)
         EV << "[PBFT::update() @ " << thisNode.getIp()
            << " Received a notification about my neighbors from the overlay\n"
@@ -191,7 +191,7 @@ void Tenderbake::update(const NodeHandle& node, bool joined){
 
 }
 
-void Tenderbake::broadcast(){
+void PBFT::broadcast(){
     if(DEBUG)
         EV << "[PBFT::broadcast() @ " << thisNode.getIp()
            << endl;
@@ -199,14 +199,14 @@ void Tenderbake::broadcast(){
     NodeVector* nodes = callNeighborSet(k);
     for(int i=0; i<(int)nodes->size(); i++){
         // send UDP message
-        TenderbakeMessage* msg = new TenderbakeMessage("PBFTMessage");
+        PBFTMessage* msg = new PBFTMessage("PBFTMessage");
 
         nodes->at(i).setPort(2048);
         sendMessageToUDP(nodes->at(i), msg);
     }
 }
 
-void Tenderbake::handleLowerMessage(cMessage* msg){
+void PBFT::handleLowerMessage(cMessage* msg){
     if(DEBUG)
         EV << "[PBFT::handleLowerMessage() @ " << thisNode.getIp()
            << endl;
@@ -214,7 +214,7 @@ void Tenderbake::handleLowerMessage(cMessage* msg){
     delete msg;
 }
 
-void Tenderbake::finishApp() {
+void PBFT::finishApp() {
     delete joinTimer;
 
     globalStatistics->addStdDev("PBFT: Sent packets", numSent);

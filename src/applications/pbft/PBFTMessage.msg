@@ -17,7 +17,7 @@ enum MessageType
 
 // now we declare the message proper
 
-packet TenderbakeMessage 
+packet PBFTMessage 
 {
     int type enum (MessageType);     // message type
     TransportAddress senderAddress;  // address of the node that sent the message

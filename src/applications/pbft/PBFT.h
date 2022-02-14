@@ -1,12 +1,12 @@
-#ifndef TENDERBAKE_H
-#define TENDERBAKE_H
+#ifndef PBFT_H
+#define PBFT_H
 
 #include <omnetpp.h>
 #include "BaseApp.h"
 
 class Blockchain;
 
-class Tenderbake : public BaseApp {
+class PBFT : public BaseApp {
 
     // module parameters
     int k;
@@ -43,12 +43,12 @@ class Tenderbake : public BaseApp {
 
 
 public:
-    Tenderbake() {
+    PBFT() {
         joinTimer = NULL;
         chainModule = NULL;
     };
 
-    ~Tenderbake() {
+    ~PBFT() {
         // cancelAndDelete(timerMsg);
 
     };
