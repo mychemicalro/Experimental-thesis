@@ -1,5 +1,5 @@
 /*
- * View.cc
+ * Blockchain.cc
  *
  *  Created on: 14/feb/2021
  *      Author: DinuFC
@@ -8,6 +8,7 @@
 
 #define DEBUG false
 #include "Blockchain.h"
+
 using namespace std;
 
 Define_Module(Blockchain);
@@ -25,7 +26,6 @@ void Blockchain::initialize(int stage) {
     // are registered, address auto-assignment takes place etc.
     if(stage != MIN_STAGE_OVERLAY)
         return;
-
 }
 
 void Blockchain::handleMessage(cMessage* msg){

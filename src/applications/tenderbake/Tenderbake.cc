@@ -1,6 +1,6 @@
 
 /*
- * Scamp.cc
+ * Tenderbake.cc
  *
  *  Created on: 30/nov/2021
  *      Author: DinuFC
@@ -88,6 +88,10 @@ void Tenderbake::changeState(States toState){
              * The node is READY to work as a replica/replica+client.
              */
             state = READY;
+
+            // TODO remove this
+            // Block b = Block();
+            // b.computeHash();
             break;
 
         case DISCONNECTED:

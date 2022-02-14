@@ -12,8 +12,9 @@
 #include <omnetpp.h>
 #include <map>
 #include <InitStages.h>
+#include "Block.h"
 
-class BaseOverlay;
+// class BaseOverlay;
 
 /**
  * This class must store a node's blockchain.
