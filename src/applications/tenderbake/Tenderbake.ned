@@ -15,8 +15,11 @@
 
 package oversim.applications.tenderbake;
 
-// import BaseApp
 import oversim.common.BaseApp;
+
+simple Blockchain{
+	@display("i=block/buffer");
+}
 
 simple Tenderbake extends BaseApp
 {
@@ -42,7 +45,14 @@ module TenderbakeApplicationModules like ITier
         output tcpOut;           // gate to the TCP layer
 
     submodules:
-        tenderbake: Tenderbake;
+        tenderbake: Tenderbake{
+        	parameters:
+                @display("p=60,60");
+        }
+        chain: Blockchain{
+        	parameters:
+                @display("p=150,60");
+        }
 
     connections allowunconnected:
         from_lowerTier --> tenderbake.from_lowerTier;

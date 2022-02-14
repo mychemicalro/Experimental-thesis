@@ -11,10 +11,12 @@
 #include "GlobalStatistics.h"
 #include "TenderbakeMessage_m.h"
 #include "Tenderbake.h"
+#include "Blockchain.h"
 
 #define DEBUG true
 
 Define_Module(Tenderbake);
+
 
 void Tenderbake::initializeApp(int stage){
     // initializeApp will be called twice, each with a different stage.
@@ -64,6 +66,9 @@ void Tenderbake::changeState(States toState){
             // Assign nodeType
             nodeType = REPLICA;
             WATCH(nodeType);
+
+            findFriendModules();
+            initializeFriendModules();
 
             break;
 
@@ -133,6 +138,17 @@ void Tenderbake::handleTimerEvent(cMessage* msg) {
         delete msg; // unknown packet
     }
 }
+
+
+void Tenderbake::findFriendModules(){
+    chainModule = check_and_cast<Blockchain*> (getParentModule()->getSubmodule("chain"));
+}
+
+void Tenderbake::initializeFriendModules(){
+    chainModule->initializeChain();
+
+}
+
 
 // deliver is called when we receive a message from the overlay.
 // TODO This method will never be called in my application

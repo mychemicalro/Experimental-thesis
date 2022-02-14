@@ -4,6 +4,8 @@
 #include <omnetpp.h>
 #include "BaseApp.h"
 
+class Blockchain;
+
 class Tenderbake : public BaseApp {
 
     // module parameters
@@ -43,6 +45,7 @@ class Tenderbake : public BaseApp {
 public:
     Tenderbake() {
         joinTimer = NULL;
+        chainModule = NULL;
     };
 
     ~Tenderbake() {
@@ -72,12 +75,22 @@ public:
      */
     void changeState(States toState);
 
+    /**
+     * Method used to find the Blockchain module
+     */
+    void findFriendModules();
+
+    /**
+     * Call initializeChain in Blockchain module
+     */
+    void initializeFriendModules();
 
 
 protected:
     // Class attributes
     States state;
     NodeTypes nodeType;
+    Blockchain* chainModule;
 };
 
 
