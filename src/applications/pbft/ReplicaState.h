@@ -14,7 +14,9 @@
 
 /**
  * Class for storing the replica state and the message log, that will have to contain
- * most of the client requests. TODO
+ * most of the client requests.
+ * Initially, the replica is not primary.
+ * TODO
  *
  */
 
@@ -37,12 +39,14 @@ public:
 
     // and setters
     void setCurrentView(int cv){ currentView = cv; }
+    void setPrimary(bool b){ primary = b; }
 
 protected:
 
 private:
     // Class variables
     int currentView;
+    bool primary; /* this replica is primary*/
     // TODO Message log
 };
 

@@ -94,7 +94,7 @@ void PBFT::changeState(States toState){
              */
             state = READY;
 
-            // Let's make this a client
+            // Let's make this a client TODO This will have to be removed
             if (this->overlay->getThisNode().getKey() < OverlayKey(2)){
                 nodeType = REPLICAANDCLIENT;
 
@@ -105,6 +105,9 @@ void PBFT::changeState(States toState){
                 scheduleAt(simTime() + uniform(1,3), clientTimer);
             }
             // TODO solve cancelAndDelete(joinTimer) issue in the destructor of PBFT
+
+            // Check if this is the primary, and set the state accordingly.
+            isPrimary();
 
             break;
 
@@ -276,5 +279,21 @@ void PBFT::finishApp() {
     globalStatistics->addStdDev("PBFT: Sent packets", numSent);
     globalStatistics->addStdDev("PBFT: Received packets", numReceived);
 }
+
+bool PBFT::isPrimary(){
+    double k = this->overlay->getThisNode().getKey().toDouble();
+    if (replicaStateModule->getCurrentView()%4 == k - 1){ // TODO Change the number of replicas (now 4).
+        EV << "Replica IP: " << thisNode.getIp() << " IS PRIMARY" << endl;
+        replicaStateModule->setPrimary(true);
+        return true;
+    }
+
+    return false;
+}
+
+
+
+
+
 
 

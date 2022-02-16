@@ -41,7 +41,11 @@ class PBFT : public BaseApp {
      */
     void handleLowerMessage(cMessage* msg);
 
-
+    /**
+     * Returns true if the node is the primary for the current view
+     * TODO
+     */
+    bool isPrimary();
 
 
 public:

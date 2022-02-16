@@ -28,5 +28,6 @@ void ReplicaState::handleMessage(cMessage* msg){
 void ReplicaState::initializeState() {
     EV << "ReplicaState initialized" << endl;
     currentView = 0;
+    primary = false;
 }
 
