@@ -46,7 +46,7 @@ enum MessageType {
  * <pre>
  * packet PBFTMessage {
  *     int type enum (MessageType);     
- *     simtime_t timestamp; 			 
+ *     
  *     
  *     
  *     
@@ -58,7 +58,6 @@ class PBFTMessage : public ::cPacket
 {
   protected:
     int type_var;
-    simtime_t timestamp_var;
 
   private:
     void copy(const PBFTMessage& other);
@@ -79,8 +78,6 @@ class PBFTMessage : public ::cPacket
     // field getter/setter methods
     virtual int getType() const;
     virtual void setType(int type);
-    virtual simtime_t getTimestamp() const;
-    virtual void setTimestamp(simtime_t timestamp);
 };
 
 inline void doPacking(cCommBuffer *b, PBFTMessage& obj) {obj.parsimPack(b);}
@@ -94,6 +91,7 @@ inline void doUnpacking(cCommBuffer *b, PBFTMessage& obj) {obj.parsimUnpack(b);}
  * 	Operation op;
  * 	TransportAddress clientAddress;
  * 	OverlayKey clientKey;
+ * 	simtime_t timestamp; 
  * }
  * </pre>
  */
@@ -103,6 +101,7 @@ class PBFTRequestMessage : public ::PBFTMessage
     Operation op_var;
     TransportAddress clientAddress_var;
     OverlayKey clientKey_var;
+    simtime_t timestamp_var;
 
   private:
     void copy(const PBFTRequestMessage& other);
@@ -130,6 +129,8 @@ class PBFTRequestMessage : public ::PBFTMessage
     virtual OverlayKey& getClientKey();
     virtual const OverlayKey& getClientKey() const {return const_cast<PBFTRequestMessage*>(this)->getClientKey();}
     virtual void setClientKey(const OverlayKey& clientKey);
+    virtual simtime_t getTimestamp() const;
+    virtual void setTimestamp(simtime_t timestamp);
 };
 
 inline void doPacking(cCommBuffer *b, PBFTRequestMessage& obj) {obj.parsimPack(b);}
@@ -140,12 +141,18 @@ inline void doUnpacking(cCommBuffer *b, PBFTRequestMessage& obj) {obj.parsimUnpa
  * <pre>
  * packet PBFTPreprepareMessage extends PBFTMessage {
  * 	type = PREPREPARE;
+ * 	int view;
+ * 	int seqNumber;
+ * 	string digest;
  * }
  * </pre>
  */
 class PBFTPreprepareMessage : public ::PBFTMessage
 {
   protected:
+    int view_var;
+    int seqNumber_var;
+    opp_string digest_var;
 
   private:
     void copy(const PBFTPreprepareMessage& other);
@@ -164,6 +171,12 @@ class PBFTPreprepareMessage : public ::PBFTMessage
     virtual void parsimUnpack(cCommBuffer *b);
 
     // field getter/setter methods
+    virtual int getView() const;
+    virtual void setView(int view);
+    virtual int getSeqNumber() const;
+    virtual void setSeqNumber(int seqNumber);
+    virtual const char * getDigest() const;
+    virtual void setDigest(const char * digest);
 };
 
 inline void doPacking(cCommBuffer *b, PBFTPreprepareMessage& obj) {obj.parsimPack(b);}

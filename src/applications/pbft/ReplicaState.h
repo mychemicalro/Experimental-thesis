@@ -36,10 +36,17 @@ public:
 
     // Getters
     int getCurrentView(){ return currentView; }
+    bool getPrimary() { return primary; }
 
     // and setters
     void setCurrentView(int cv){ currentView = cv; }
     void setPrimary(bool b){ primary = b; }
+
+    /**
+     * Add message to log
+     */
+    void addToLog(cMessage* msg);
+
 
 protected:
 

@@ -29,5 +29,12 @@ void ReplicaState::initializeState() {
     EV << "ReplicaState initialized" << endl;
     currentView = 0;
     primary = false;
+
+    WATCH(primary);
+    WATCH(currentView);
+
 }
 
+void ReplicaState::addToLog(cMessage* msg){
+    EV << "Message added to log: TODO" << endl;
+}

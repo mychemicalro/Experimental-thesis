@@ -26,20 +26,19 @@ void PBFT::initializeApp(int stage){
 
     if (stage != MIN_STAGE_APP) return;
 
-    EV << "PBFT Initialization!" << endl;
-
     k = par("k");
     joinDelay = par("joinDelay");
 
     numSent = 0;
     numReceived = 0;
 
+    sequenceNumber = 0;
+
     WATCH(numSent);
     WATCH(numReceived);
     WATCH(k);
     WATCH(joinDelay);
-
-    sequenceNumber = 0;
+    WATCH(sequenceNumber);
 
     joinTimer = new cMessage("Application joinTimer");
 
@@ -158,7 +157,7 @@ void PBFT::handleTimerEvent(cMessage* msg) {
         Operation op = Operation(this->overlay->getThisNode().getKey(), thisNode.getIp(), simTime());
         PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTMessage");
         msg->setOp(op);
-        msg->setTimestamp(simTime());
+        msg->setTimestamp(simTime()); // TODO not always needed
         msg->setClientKey(this->overlay->getThisNode().getKey());
         msg->setClientAddress(thisNode); // This includes also the port, like 10.0.0.1:2048
 
@@ -204,12 +203,41 @@ void PBFT::handleUDPMessage(cMessage* msg) {
            << endl;
 
     PBFTMessage *myMsg = dynamic_cast<PBFTMessage*>(msg);
+    numReceived ++;
 
     switch(myMsg->getType()){
         case REQUEST:{
             // Cast again the message to the needed format
             PBFTRequestMessage *req = dynamic_cast<PBFTRequestMessage*>(myMsg);
             EV << "sender key:" << req->getOp().getOriginatorKey() << endl;
+
+            // Insert into log, save things like digest, sender, etc
+            replicaStateModule->addToLog(req);
+
+            // If I am the primary and if authentication is OK, assign sequence number and multicast PREPREPARE message
+            if (replicaStateModule->getPrimary()) {
+                sequenceNumber ++;
+                PBFTPreprepareMessage* preprepare_msg = new PBFTPreprepareMessage("PBFTMessage");
+                preprepare_msg->setView(replicaStateModule->getCurrentView());
+                preprepare_msg->setSeqNumber(sequenceNumber);
+
+                preprepare_msg->setDigest(req->getOp().computeHash());
+
+                // TODO compute message digest
+                broadcast(preprepare_msg);
+
+
+/*
+                Operation op = Operation(this->overlay->getThisNode().getKey(), thisNode.getIp(), simTime());
+                msg->setOp(op);
+                msg->setTimestamp(simTime());
+                msg->setClientKey(this->overlay->getThisNode().getKey());
+                msg->setClientAddress(thisNode); // This includes also the port, like 10.0.0.1:2048
+*/
+            }
+
+
+
 
             break;
         }
@@ -262,6 +290,7 @@ void PBFT::broadcast(cMessage* msg){
         // send UDP message
         nodes->at(i).setPort(2048);
         sendMessageToUDP(nodes->at(i), myMsg->dup());
+        numSent ++;
     }
 }
 

@@ -1,3 +1,4 @@
+// #include <cstdint>
 #include <iostream>
 #include <sstream>
 #include <simtime_t.h>
@@ -15,12 +16,15 @@ class Operation {
 
         // Getters
         simtime_t getTimestamp(){return timestamp;}
-        string getOp(){return op;}
+        Operation& getOp();
         OverlayKey getOriginatorKey(){return originator.first;}
         IPvXAddress getIp(){return originator.second;}
 
         // And setters
         // TODO
+
+        // Other methods
+        const char* computeHash();
 
     private:
         string op;

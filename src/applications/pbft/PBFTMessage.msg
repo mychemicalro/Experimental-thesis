@@ -25,7 +25,7 @@ enum MessageType {
 
 packet PBFTMessage {
     int type enum (MessageType);     // message type
-    simtime_t timestamp; 			 // timestamp when the messages was generated.
+    // simtime_t timestamp; 			 // timestamp when the messages was generated.
     
     // TransportAddress senderAddress;  // address of the node that sent the message
     // OverlayKey senderKey;				 // overlayKey of the client that sent the message
@@ -37,10 +37,14 @@ packet PBFTRequestMessage extends PBFTMessage {
 	Operation op;
 	TransportAddress clientAddress;
 	OverlayKey clientKey;
+	simtime_t timestamp; 
 }
 
 packet PBFTPreprepareMessage extends PBFTMessage {
 	type = PREPREPARE;
+	int view;
+	int seqNumber;
+	string digest;
 }
 
 packet PBFTPrepareMessage extends PBFTMessage {

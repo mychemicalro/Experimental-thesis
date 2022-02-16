@@ -45,7 +45,6 @@ Register_Class(PBFTMessage);
 PBFTMessage::PBFTMessage(const char *name, int kind) : cPacket(name,kind)
 {
     this->type_var = 0;
-    this->timestamp_var = 0;
 }
 
 PBFTMessage::PBFTMessage(const PBFTMessage& other) : cPacket(other)
@@ -68,21 +67,18 @@ PBFTMessage& PBFTMessage::operator=(const PBFTMessage& other)
 void PBFTMessage::copy(const PBFTMessage& other)
 {
     this->type_var = other.type_var;
-    this->timestamp_var = other.timestamp_var;
 }
 
 void PBFTMessage::parsimPack(cCommBuffer *b)
 {
     cPacket::parsimPack(b);
     doPacking(b,this->type_var);
-    doPacking(b,this->timestamp_var);
 }
 
 void PBFTMessage::parsimUnpack(cCommBuffer *b)
 {
     cPacket::parsimUnpack(b);
     doUnpacking(b,this->type_var);
-    doUnpacking(b,this->timestamp_var);
 }
 
 int PBFTMessage::getType() const
@@ -93,16 +89,6 @@ int PBFTMessage::getType() const
 void PBFTMessage::setType(int type)
 {
     this->type_var = type;
-}
-
-simtime_t PBFTMessage::getTimestamp() const
-{
-    return timestamp_var;
-}
-
-void PBFTMessage::setTimestamp(simtime_t timestamp)
-{
-    this->timestamp_var = timestamp;
 }
 
 class PBFTMessageDescriptor : public cClassDescriptor
@@ -152,7 +138,7 @@ const char *PBFTMessageDescriptor::getProperty(const char *propertyname) const
 int PBFTMessageDescriptor::getFieldCount(void *object) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
-    return basedesc ? 2+basedesc->getFieldCount(object) : 2;
+    return basedesc ? 1+basedesc->getFieldCount(object) : 1;
 }
 
 unsigned int PBFTMessageDescriptor::getFieldTypeFlags(void *object, int field) const
@@ -165,9 +151,8 @@ unsigned int PBFTMessageDescriptor::getFieldTypeFlags(void *object, int field) c
     }
     static unsigned int fieldTypeFlags[] = {
         FD_ISEDITABLE,
-        FD_ISEDITABLE,
     };
-    return (field>=0 && field<2) ? fieldTypeFlags[field] : 0;
+    return (field>=0 && field<1) ? fieldTypeFlags[field] : 0;
 }
 
 const char *PBFTMessageDescriptor::getFieldName(void *object, int field) const
@@ -180,9 +165,8 @@ const char *PBFTMessageDescriptor::getFieldName(void *object, int field) const
     }
     static const char *fieldNames[] = {
         "type",
-        "timestamp",
     };
-    return (field>=0 && field<2) ? fieldNames[field] : NULL;
+    return (field>=0 && field<1) ? fieldNames[field] : NULL;
 }
 
 int PBFTMessageDescriptor::findField(void *object, const char *fieldName) const
@@ -190,7 +174,6 @@ int PBFTMessageDescriptor::findField(void *object, const char *fieldName) const
     cClassDescriptor *basedesc = getBaseClassDescriptor();
     int base = basedesc ? basedesc->getFieldCount(object) : 0;
     if (fieldName[0]=='t' && strcmp(fieldName, "type")==0) return base+0;
-    if (fieldName[0]=='t' && strcmp(fieldName, "timestamp")==0) return base+1;
     return basedesc ? basedesc->findField(object, fieldName) : -1;
 }
 
@@ -204,9 +187,8 @@ const char *PBFTMessageDescriptor::getFieldTypeString(void *object, int field) c
     }
     static const char *fieldTypeStrings[] = {
         "int",
-        "simtime_t",
     };
-    return (field>=0 && field<2) ? fieldTypeStrings[field] : NULL;
+    return (field>=0 && field<1) ? fieldTypeStrings[field] : NULL;
 }
 
 const char *PBFTMessageDescriptor::getFieldProperty(void *object, int field, const char *propertyname) const
@@ -250,7 +232,6 @@ std::string PBFTMessageDescriptor::getFieldAsString(void *object, int field, int
     PBFTMessage *pp = (PBFTMessage *)object; (void)pp;
     switch (field) {
         case 0: return long2string(pp->getType());
-        case 1: return double2string(pp->getTimestamp());
         default: return "";
     }
 }
@@ -266,7 +247,6 @@ bool PBFTMessageDescriptor::setFieldAsString(void *object, int field, int i, con
     PBFTMessage *pp = (PBFTMessage *)object; (void)pp;
     switch (field) {
         case 0: pp->setType(string2long(value)); return true;
-        case 1: pp->setTimestamp(string2double(value)); return true;
         default: return false;
     }
 }
@@ -281,9 +261,8 @@ const char *PBFTMessageDescriptor::getFieldStructName(void *object, int field) c
     }
     static const char *fieldStructNames[] = {
         NULL,
-        NULL,
     };
-    return (field>=0 && field<2) ? fieldStructNames[field] : NULL;
+    return (field>=0 && field<1) ? fieldStructNames[field] : NULL;
 }
 
 void *PBFTMessageDescriptor::getFieldStructPointer(void *object, int field, int i) const
@@ -306,6 +285,7 @@ PBFTRequestMessage::PBFTRequestMessage(const char *name, int kind) : PBFTMessage
 {
     this->setType(REQUEST);
 
+    this->timestamp_var = 0;
 }
 
 PBFTRequestMessage::PBFTRequestMessage(const PBFTRequestMessage& other) : PBFTMessage(other)
@@ -330,6 +310,7 @@ void PBFTRequestMessage::copy(const PBFTRequestMessage& other)
     this->op_var = other.op_var;
     this->clientAddress_var = other.clientAddress_var;
     this->clientKey_var = other.clientKey_var;
+    this->timestamp_var = other.timestamp_var;
 }
 
 void PBFTRequestMessage::parsimPack(cCommBuffer *b)
@@ -338,6 +319,7 @@ void PBFTRequestMessage::parsimPack(cCommBuffer *b)
     doPacking(b,this->op_var);
     doPacking(b,this->clientAddress_var);
     doPacking(b,this->clientKey_var);
+    doPacking(b,this->timestamp_var);
 }
 
 void PBFTRequestMessage::parsimUnpack(cCommBuffer *b)
@@ -346,6 +328,7 @@ void PBFTRequestMessage::parsimUnpack(cCommBuffer *b)
     doUnpacking(b,this->op_var);
     doUnpacking(b,this->clientAddress_var);
     doUnpacking(b,this->clientKey_var);
+    doUnpacking(b,this->timestamp_var);
 }
 
 Operation& PBFTRequestMessage::getOp()
@@ -376,6 +359,16 @@ OverlayKey& PBFTRequestMessage::getClientKey()
 void PBFTRequestMessage::setClientKey(const OverlayKey& clientKey)
 {
     this->clientKey_var = clientKey;
+}
+
+simtime_t PBFTRequestMessage::getTimestamp() const
+{
+    return timestamp_var;
+}
+
+void PBFTRequestMessage::setTimestamp(simtime_t timestamp)
+{
+    this->timestamp_var = timestamp;
 }
 
 class PBFTRequestMessageDescriptor : public cClassDescriptor
@@ -425,7 +418,7 @@ const char *PBFTRequestMessageDescriptor::getProperty(const char *propertyname) 
 int PBFTRequestMessageDescriptor::getFieldCount(void *object) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
-    return basedesc ? 3+basedesc->getFieldCount(object) : 3;
+    return basedesc ? 4+basedesc->getFieldCount(object) : 4;
 }
 
 unsigned int PBFTRequestMessageDescriptor::getFieldTypeFlags(void *object, int field) const
@@ -440,8 +433,9 @@ unsigned int PBFTRequestMessageDescriptor::getFieldTypeFlags(void *object, int f
         FD_ISCOMPOUND,
         FD_ISCOMPOUND,
         FD_ISCOMPOUND,
+        FD_ISEDITABLE,
     };
-    return (field>=0 && field<3) ? fieldTypeFlags[field] : 0;
+    return (field>=0 && field<4) ? fieldTypeFlags[field] : 0;
 }
 
 const char *PBFTRequestMessageDescriptor::getFieldName(void *object, int field) const
@@ -456,8 +450,9 @@ const char *PBFTRequestMessageDescriptor::getFieldName(void *object, int field) 
         "op",
         "clientAddress",
         "clientKey",
+        "timestamp",
     };
-    return (field>=0 && field<3) ? fieldNames[field] : NULL;
+    return (field>=0 && field<4) ? fieldNames[field] : NULL;
 }
 
 int PBFTRequestMessageDescriptor::findField(void *object, const char *fieldName) const
@@ -467,6 +462,7 @@ int PBFTRequestMessageDescriptor::findField(void *object, const char *fieldName)
     if (fieldName[0]=='o' && strcmp(fieldName, "op")==0) return base+0;
     if (fieldName[0]=='c' && strcmp(fieldName, "clientAddress")==0) return base+1;
     if (fieldName[0]=='c' && strcmp(fieldName, "clientKey")==0) return base+2;
+    if (fieldName[0]=='t' && strcmp(fieldName, "timestamp")==0) return base+3;
     return basedesc ? basedesc->findField(object, fieldName) : -1;
 }
 
@@ -482,8 +478,9 @@ const char *PBFTRequestMessageDescriptor::getFieldTypeString(void *object, int f
         "Operation",
         "TransportAddress",
         "OverlayKey",
+        "simtime_t",
     };
-    return (field>=0 && field<3) ? fieldTypeStrings[field] : NULL;
+    return (field>=0 && field<4) ? fieldTypeStrings[field] : NULL;
 }
 
 const char *PBFTRequestMessageDescriptor::getFieldProperty(void *object, int field, const char *propertyname) const
@@ -526,6 +523,7 @@ std::string PBFTRequestMessageDescriptor::getFieldAsString(void *object, int fie
         case 0: {std::stringstream out; out << pp->getOp(); return out.str();}
         case 1: {std::stringstream out; out << pp->getClientAddress(); return out.str();}
         case 2: {std::stringstream out; out << pp->getClientKey(); return out.str();}
+        case 3: return double2string(pp->getTimestamp());
         default: return "";
     }
 }
@@ -540,6 +538,7 @@ bool PBFTRequestMessageDescriptor::setFieldAsString(void *object, int field, int
     }
     PBFTRequestMessage *pp = (PBFTRequestMessage *)object; (void)pp;
     switch (field) {
+        case 3: pp->setTimestamp(string2double(value)); return true;
         default: return false;
     }
 }
@@ -556,8 +555,9 @@ const char *PBFTRequestMessageDescriptor::getFieldStructName(void *object, int f
         "Operation",
         "TransportAddress",
         "OverlayKey",
+        NULL,
     };
-    return (field>=0 && field<3) ? fieldStructNames[field] : NULL;
+    return (field>=0 && field<4) ? fieldStructNames[field] : NULL;
 }
 
 void *PBFTRequestMessageDescriptor::getFieldStructPointer(void *object, int field, int i) const
@@ -582,6 +582,10 @@ Register_Class(PBFTPreprepareMessage);
 PBFTPreprepareMessage::PBFTPreprepareMessage(const char *name, int kind) : PBFTMessage(name,kind)
 {
     this->setType(PREPREPARE);
+
+    this->view_var = 0;
+    this->seqNumber_var = 0;
+    this->digest_var = 0;
 }
 
 PBFTPreprepareMessage::PBFTPreprepareMessage(const PBFTPreprepareMessage& other) : PBFTMessage(other)
@@ -603,16 +607,55 @@ PBFTPreprepareMessage& PBFTPreprepareMessage::operator=(const PBFTPreprepareMess
 
 void PBFTPreprepareMessage::copy(const PBFTPreprepareMessage& other)
 {
+    this->view_var = other.view_var;
+    this->seqNumber_var = other.seqNumber_var;
+    this->digest_var = other.digest_var;
 }
 
 void PBFTPreprepareMessage::parsimPack(cCommBuffer *b)
 {
     PBFTMessage::parsimPack(b);
+    doPacking(b,this->view_var);
+    doPacking(b,this->seqNumber_var);
+    doPacking(b,this->digest_var);
 }
 
 void PBFTPreprepareMessage::parsimUnpack(cCommBuffer *b)
 {
     PBFTMessage::parsimUnpack(b);
+    doUnpacking(b,this->view_var);
+    doUnpacking(b,this->seqNumber_var);
+    doUnpacking(b,this->digest_var);
+}
+
+int PBFTPreprepareMessage::getView() const
+{
+    return view_var;
+}
+
+void PBFTPreprepareMessage::setView(int view)
+{
+    this->view_var = view;
+}
+
+int PBFTPreprepareMessage::getSeqNumber() const
+{
+    return seqNumber_var;
+}
+
+void PBFTPreprepareMessage::setSeqNumber(int seqNumber)
+{
+    this->seqNumber_var = seqNumber;
+}
+
+const char * PBFTPreprepareMessage::getDigest() const
+{
+    return digest_var.c_str();
+}
+
+void PBFTPreprepareMessage::setDigest(const char * digest)
+{
+    this->digest_var = digest;
 }
 
 class PBFTPreprepareMessageDescriptor : public cClassDescriptor
@@ -662,7 +705,7 @@ const char *PBFTPreprepareMessageDescriptor::getProperty(const char *propertynam
 int PBFTPreprepareMessageDescriptor::getFieldCount(void *object) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
-    return basedesc ? 0+basedesc->getFieldCount(object) : 0;
+    return basedesc ? 3+basedesc->getFieldCount(object) : 3;
 }
 
 unsigned int PBFTPreprepareMessageDescriptor::getFieldTypeFlags(void *object, int field) const
@@ -673,7 +716,12 @@ unsigned int PBFTPreprepareMessageDescriptor::getFieldTypeFlags(void *object, in
             return basedesc->getFieldTypeFlags(object, field);
         field -= basedesc->getFieldCount(object);
     }
-    return 0;
+    static unsigned int fieldTypeFlags[] = {
+        FD_ISEDITABLE,
+        FD_ISEDITABLE,
+        FD_ISEDITABLE,
+    };
+    return (field>=0 && field<3) ? fieldTypeFlags[field] : 0;
 }
 
 const char *PBFTPreprepareMessageDescriptor::getFieldName(void *object, int field) const
@@ -684,12 +732,21 @@ const char *PBFTPreprepareMessageDescriptor::getFieldName(void *object, int fiel
             return basedesc->getFieldName(object, field);
         field -= basedesc->getFieldCount(object);
     }
-    return NULL;
+    static const char *fieldNames[] = {
+        "view",
+        "seqNumber",
+        "digest",
+    };
+    return (field>=0 && field<3) ? fieldNames[field] : NULL;
 }
 
 int PBFTPreprepareMessageDescriptor::findField(void *object, const char *fieldName) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
+    int base = basedesc ? basedesc->getFieldCount(object) : 0;
+    if (fieldName[0]=='v' && strcmp(fieldName, "view")==0) return base+0;
+    if (fieldName[0]=='s' && strcmp(fieldName, "seqNumber")==0) return base+1;
+    if (fieldName[0]=='d' && strcmp(fieldName, "digest")==0) return base+2;
     return basedesc ? basedesc->findField(object, fieldName) : -1;
 }
 
@@ -701,7 +758,12 @@ const char *PBFTPreprepareMessageDescriptor::getFieldTypeString(void *object, in
             return basedesc->getFieldTypeString(object, field);
         field -= basedesc->getFieldCount(object);
     }
-    return NULL;
+    static const char *fieldTypeStrings[] = {
+        "int",
+        "int",
+        "string",
+    };
+    return (field>=0 && field<3) ? fieldTypeStrings[field] : NULL;
 }
 
 const char *PBFTPreprepareMessageDescriptor::getFieldProperty(void *object, int field, const char *propertyname) const
@@ -741,6 +803,9 @@ std::string PBFTPreprepareMessageDescriptor::getFieldAsString(void *object, int 
     }
     PBFTPreprepareMessage *pp = (PBFTPreprepareMessage *)object; (void)pp;
     switch (field) {
+        case 0: return long2string(pp->getView());
+        case 1: return long2string(pp->getSeqNumber());
+        case 2: return oppstring2string(pp->getDigest());
         default: return "";
     }
 }
@@ -755,6 +820,9 @@ bool PBFTPreprepareMessageDescriptor::setFieldAsString(void *object, int field, 
     }
     PBFTPreprepareMessage *pp = (PBFTPreprepareMessage *)object; (void)pp;
     switch (field) {
+        case 0: pp->setView(string2long(value)); return true;
+        case 1: pp->setSeqNumber(string2long(value)); return true;
+        case 2: pp->setDigest((value)); return true;
         default: return false;
     }
 }
@@ -767,7 +835,12 @@ const char *PBFTPreprepareMessageDescriptor::getFieldStructName(void *object, in
             return basedesc->getFieldStructName(object, field);
         field -= basedesc->getFieldCount(object);
     }
-    return NULL;
+    static const char *fieldStructNames[] = {
+        NULL,
+        NULL,
+        NULL,
+    };
+    return (field>=0 && field<3) ? fieldStructNames[field] : NULL;
 }
 
 void *PBFTPreprepareMessageDescriptor::getFieldStructPointer(void *object, int field, int i) const
