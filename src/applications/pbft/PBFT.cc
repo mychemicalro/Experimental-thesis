@@ -289,7 +289,13 @@ void PBFT::broadcast(cMessage* msg){
 
         // send UDP message
         nodes->at(i).setPort(2048);
-        sendMessageToUDP(nodes->at(i), myMsg->dup());
+        if (nodes->at(i).getIp() == thisNode.getIp()){
+            // Need to add some delay since I am sending the message to myself.
+            sendMessageToUDP(nodes->at(i), myMsg->dup(), uniform(0, 1));
+        } else {
+            sendMessageToUDP(nodes->at(i), myMsg->dup());
+        }
+
         numSent ++;
     }
 }
