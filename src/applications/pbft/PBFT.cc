@@ -38,6 +38,9 @@ void PBFT::initializeApp(int stage){
     WATCH(k);
     WATCH(joinDelay);
 
+    view = 0;
+    sequenceNumber = 0;
+
     joinTimer = new cMessage("Application joinTimer");
 
 
@@ -70,6 +73,8 @@ void PBFT::changeState(States toState){
             findFriendModules();
             initializeFriendModules();
 
+            // Here I do not have yet an overlayKey
+
             break;
 
         case JOIN:
@@ -89,9 +94,18 @@ void PBFT::changeState(States toState){
              */
             state = READY;
 
-            // TODO remove this
-            // Block b = Block();
-            // b.computeHash();
+            // Let's make this a client
+            if (this->overlay->getThisNode().getKey() < OverlayKey(2)){
+                nodeType = REPLICAANDCLIENT;
+
+                // Set timer for sending messages
+                clientTimer = new cMessage("Client timer");
+
+                // TODO add some delay parameter
+                scheduleAt(simTime() + uniform(1,3), clientTimer);
+            }
+            // TODO solve cancelAndDelete(joinTimer) issue in the destructor of PBFT
+
             break;
 
         case DISCONNECTED:
@@ -137,6 +151,19 @@ void PBFT::handleTimerEvent(cMessage* msg) {
         } else {
             scheduleAt(simTime() + joinDelay, joinTimer);
         }
+
+    } else if (msg == clientTimer){
+        // Create a new operation and broadcast it
+        Operation op = Operation();
+        PBFTMessage* msg = new PBFTMessage("PBFTMessage");
+        msg->setOp(op);
+        msg->setTimestamp(simTime());
+        msg->setOKey(this->overlay->getThisNode().getKey());
+        msg->setSenderAddress(thisNode.getIp()); // TODO understand why unspec addr
+        msg->setType(REQUEST);
+
+        broadcast(msg);
+
 
     } else {
         delete msg; // unknown packet
@@ -191,18 +218,20 @@ void PBFT::update(const NodeHandle& node, bool joined){
 
 }
 
-void PBFT::broadcast(){
+void PBFT::broadcast(cMessage* msg){
     if(DEBUG)
         EV << "[PBFT::broadcast() @ " << thisNode.getIp()
            << endl;
 
+    PBFTMessage *myMsg = dynamic_cast<PBFTMessage*>(msg);
+
     NodeVector* nodes = callNeighborSet(k);
     for(int i=0; i<(int)nodes->size(); i++){
         // send UDP message
-        PBFTMessage* msg = new PBFTMessage("PBFTMessage");
-
+        // PBFTMessage* msg = new PBFTMessage("PBFTMessage");
         nodes->at(i).setPort(2048);
-        sendMessageToUDP(nodes->at(i), msg);
+
+        sendMessageToUDP(nodes->at(i), myMsg->dup());
     }
 }
 

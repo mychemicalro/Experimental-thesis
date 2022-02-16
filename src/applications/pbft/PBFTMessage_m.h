@@ -15,6 +15,8 @@
 
 // cplusplus {{
 #include <TransportAddress.h>
+#include <OverlayKey.h>
+#include <Operation.h>
 // }}
 
 
@@ -24,14 +26,12 @@
  * <pre>
  * enum MessageType 
  * {
- *     MYMSG_PING = 1;           
- *     MYMSG_PONG = 2;           
+ *     REQUEST = 1;           
  * }
  * </pre>
  */
 enum MessageType {
-    MYMSG_PING = 1,
-    MYMSG_PONG = 2
+    REQUEST = 1
 };
 
 /**
@@ -41,6 +41,9 @@ enum MessageType {
  * {
  *     int type enum (MessageType);     
  *     TransportAddress senderAddress;  
+ *     OverlayKey oKey;				 
+ *     simtime_t timestamp; 			 
+ *     Operation op;
  * }
  * </pre>
  */
@@ -49,6 +52,9 @@ class PBFTMessage : public ::cPacket
   protected:
     int type_var;
     TransportAddress senderAddress_var;
+    OverlayKey oKey_var;
+    simtime_t timestamp_var;
+    Operation op_var;
 
   private:
     void copy(const PBFTMessage& other);
@@ -72,6 +78,14 @@ class PBFTMessage : public ::cPacket
     virtual TransportAddress& getSenderAddress();
     virtual const TransportAddress& getSenderAddress() const {return const_cast<PBFTMessage*>(this)->getSenderAddress();}
     virtual void setSenderAddress(const TransportAddress& senderAddress);
+    virtual OverlayKey& getOKey();
+    virtual const OverlayKey& getOKey() const {return const_cast<PBFTMessage*>(this)->getOKey();}
+    virtual void setOKey(const OverlayKey& oKey);
+    virtual simtime_t getTimestamp() const;
+    virtual void setTimestamp(simtime_t timestamp);
+    virtual Operation& getOp();
+    virtual const Operation& getOp() const {return const_cast<PBFTMessage*>(this)->getOp();}
+    virtual void setOp(const Operation& op);
 };
 
 inline void doPacking(cCommBuffer *b, PBFTMessage& obj) {obj.parsimPack(b);}

@@ -3,6 +3,7 @@
 
 #include <omnetpp.h>
 #include "BaseApp.h"
+// #include "Operation.h"
 
 class Blockchain;
 
@@ -18,6 +19,7 @@ class PBFT : public BaseApp {
 
     // our timer
     cMessage *joinTimer;
+    cMessage *clientTimer;  // timer to send messages as a client
 
     // application routines
     void initializeApp(int stage);                 // called when the module is being created
@@ -32,7 +34,7 @@ class PBFT : public BaseApp {
      * Gossips a message. It will send a message to k nodes.
      * k is an application parameter.
      */
-    void broadcast();
+    void broadcast(cMessage* msg);
 
     /**
      * Handles messages received from the overlay
@@ -46,10 +48,12 @@ public:
     PBFT() {
         joinTimer = NULL;
         chainModule = NULL;
+        clientTimer = NULL;
     };
 
     ~PBFT() {
-        // cancelAndDelete(timerMsg);
+        cancelAndDelete(joinTimer);
+        cancelAndDelete(clientTimer);
 
     };
 
@@ -91,6 +95,11 @@ protected:
     States state;
     NodeTypes nodeType;
     Blockchain* chainModule;
+
+    // Algorithm attributes
+    int view;
+    int sequenceNumber;
+
 };
 
 
