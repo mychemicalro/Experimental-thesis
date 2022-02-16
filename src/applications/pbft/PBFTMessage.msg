@@ -25,14 +25,18 @@ enum MessageType {
 
 packet PBFTMessage {
     int type enum (MessageType);     // message type
-    TransportAddress senderAddress;  // address of the node that sent the message
-    OverlayKey oKey;				 // overlayKey of the node that sent the message
-    // simtime_t timestamp; 			 // timestamp when the messages was generated.
-    Operation op;
+    simtime_t timestamp; 			 // timestamp when the messages was generated.
+    
+    // TransportAddress senderAddress;  // address of the node that sent the message
+    // OverlayKey senderKey;				 // overlayKey of the client that sent the message
+    
 }
 
 packet PBFTRequestMessage extends PBFTMessage {
 	type = REQUEST;
+	Operation op;
+	TransportAddress clientAddress;
+	OverlayKey clientKey;
 }
 
 packet PBFTPreprepareMessage extends PBFTMessage {
@@ -49,6 +53,9 @@ packet PBFTCommitMessage extends PBFTMessage {
 
 packet PBFTReplyMessage extends PBFTMessage {
 	type = REPLY;
+	int view;
+	OverlayKey replicaNumber; 							// replica number
+	int operationResult; 								// the result of the operation TODO
 }
 
 

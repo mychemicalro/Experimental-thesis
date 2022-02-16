@@ -21,6 +21,10 @@ simple Blockchain{
 	@display("i=block/buffer");
 }
 
+simple ReplicaState{
+	@display("i=block/table2");
+}
+
 simple PBFT extends BaseApp
 {
     parameters:
@@ -52,6 +56,10 @@ module PBFTApplicationModules like ITier
         chain: Blockchain{
         	parameters:
                 @display("p=150,60");
+        }
+        replicaState: ReplicaState{
+        	parameters:
+                @display("p=240,60");
         }
 
     connections allowunconnected:

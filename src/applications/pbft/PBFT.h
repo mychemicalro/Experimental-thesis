@@ -3,9 +3,9 @@
 
 #include <omnetpp.h>
 #include "BaseApp.h"
-// #include "Operation.h"
 
 class Blockchain;
+class ReplicaState;
 
 class PBFT : public BaseApp {
 
@@ -47,8 +47,11 @@ class PBFT : public BaseApp {
 public:
     PBFT() {
         joinTimer = NULL;
-        chainModule = NULL;
         clientTimer = NULL;
+
+        chainModule = NULL;
+        replicaStateModule = NULL;
+
     };
 
     ~PBFT() {
@@ -95,9 +98,9 @@ protected:
     States state;
     NodeTypes nodeType;
     Blockchain* chainModule;
+    ReplicaState* replicaStateModule;
 
     // Algorithm attributes
-    int view;
     int sequenceNumber;
 
 };

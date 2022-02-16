@@ -1145,6 +1145,8 @@ NodeVector* Scamp::neighborSet(int num){
             nodes->add(out.at(i));
         }
     }
+    // Add myself to the result, since this will be used for broadcasting
+    nodes->add(thisNode);
     return nodes;
 }
 

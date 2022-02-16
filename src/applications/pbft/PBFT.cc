@@ -12,6 +12,7 @@
 #include "PBFTMessage_m.h"
 #include "PBFT.h"
 #include "Blockchain.h"
+#include "ReplicaState.h"
 
 #define DEBUG true
 
@@ -38,7 +39,6 @@ void PBFT::initializeApp(int stage){
     WATCH(k);
     WATCH(joinDelay);
 
-    view = 0;
     sequenceNumber = 0;
 
     joinTimer = new cMessage("Application joinTimer");
@@ -152,15 +152,14 @@ void PBFT::handleTimerEvent(cMessage* msg) {
     } else if (msg == clientTimer){
         // Create a new operation and broadcast it
 
-        Operation op = Operation(simTime());
+        Operation op = Operation(this->overlay->getThisNode().getKey(), thisNode.getIp(), simTime());
         PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTMessage");
         msg->setOp(op);
-        // msg->setTimestamp(simTime());
-        msg->setOKey(this->overlay->getThisNode().getKey());
-        msg->setSenderAddress(thisNode); // This includes also the port, like 10.0.0.1:2048
+        msg->setTimestamp(simTime());
+        msg->setClientKey(this->overlay->getThisNode().getKey());
+        msg->setClientAddress(thisNode); // This includes also the port, like 10.0.0.1:2048
 
         broadcast(msg);
-
 
     } else {
         delete msg; // unknown packet
@@ -170,10 +169,12 @@ void PBFT::handleTimerEvent(cMessage* msg) {
 
 void PBFT::findFriendModules(){
     chainModule = check_and_cast<Blockchain*> (getParentModule()->getSubmodule("chain"));
+    replicaStateModule = check_and_cast<ReplicaState*> (getParentModule()->getSubmodule("replicaState"));
 }
 
 void PBFT::initializeFriendModules(){
     chainModule->initializeChain();
+    replicaStateModule->initializeState();
 
 }
 
@@ -205,6 +206,7 @@ void PBFT::handleUDPMessage(cMessage* msg) {
         case REQUEST:{
             // Cast again the message to the needed format
             PBFTRequestMessage *req = dynamic_cast<PBFTRequestMessage*>(myMsg);
+            EV << "sender key:" << req->getOp().getOriginatorKey() << endl;
 
             break;
         }
@@ -218,8 +220,10 @@ void PBFT::handleUDPMessage(cMessage* msg) {
         case COMMIT:
             break;
 
-        case REPLY:
+        case REPLY: {
+            PBFTReplyMessage *rep = dynamic_cast<PBFTReplyMessage*>(myMsg);
             break;
+        }
 
         default:
             error("handleUDPMessage(): Unknown message type!");
@@ -246,9 +250,10 @@ void PBFT::broadcast(cMessage* msg){
            << endl;
 
     PBFTMessage *myMsg = dynamic_cast<PBFTMessage*>(msg);
+
+    // This call returns k random nodes from the partialView, + myself
     NodeVector* nodes = callNeighborSet(k);
 
-    // TODO Since I am a replica, send the message also to me
     for(int i=0; i<(int)nodes->size(); i++){
 
         // send UDP message
