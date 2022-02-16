@@ -13,18 +13,45 @@ class noncobject Operation;            		  // noncobject means it's not a messag
 // First, we declare an enum for the message type:
 // Enumerations in messages MUST have a value.
 
-enum MessageType 
-{
-    REQUEST = 1;           // outgoing message
+enum MessageType {
+    REQUEST = 1;
+	PREPREPARE = 2;
+	PREPARE = 3;
+	COMMIT = 4;
+	REPLY = 5;
 }
 
 // now we declare the message proper
 
-packet PBFTMessage 
-{
+packet PBFTMessage {
     int type enum (MessageType);     // message type
     TransportAddress senderAddress;  // address of the node that sent the message
     OverlayKey oKey;				 // overlayKey of the node that sent the message
-    simtime_t timestamp; 			 // timestamp when the messages was generated 
+    // simtime_t timestamp; 			 // timestamp when the messages was generated.
     Operation op;
 }
+
+packet PBFTRequestMessage extends PBFTMessage {
+	type = REQUEST;
+}
+
+packet PBFTPreprepareMessage extends PBFTMessage {
+	type = PREPREPARE;
+}
+
+packet PBFTPrepareMessage extends PBFTMessage {
+	type = PREPARE;
+}
+
+packet PBFTCommitMessage extends PBFTMessage {
+	type = COMMIT;
+}
+
+packet PBFTReplyMessage extends PBFTMessage {
+	type = REPLY;
+}
+
+
+
+
+

@@ -142,9 +142,6 @@ void PBFT::handleTimerEvent(cMessage* msg) {
         }
         */
 
-        // sendMessageToLowerTier(new cPacket("Ciaoone from APP"));
-        // broadcast();
-
         if (overlay->getState() == 6){
             // TODO A lot of other things must happen
             changeState(READY);
@@ -154,13 +151,13 @@ void PBFT::handleTimerEvent(cMessage* msg) {
 
     } else if (msg == clientTimer){
         // Create a new operation and broadcast it
-        Operation op = Operation();
-        PBFTMessage* msg = new PBFTMessage("PBFTMessage");
+
+        Operation op = Operation(simTime());
+        PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTMessage");
         msg->setOp(op);
-        msg->setTimestamp(simTime());
+        // msg->setTimestamp(simTime());
         msg->setOKey(this->overlay->getThisNode().getKey());
-        msg->setSenderAddress(thisNode.getIp()); // TODO understand why unspec addr
-        msg->setType(REQUEST);
+        msg->setSenderAddress(thisNode); // This includes also the port, like 10.0.0.1:2048
 
         broadcast(msg);
 
@@ -202,7 +199,32 @@ void PBFT::handleUDPMessage(cMessage* msg) {
            << " Received a message"
            << endl;
 
-    // PBFTMessage *myMsg = dynamic_cast<PBFTMessage*>(msg);
+    PBFTMessage *myMsg = dynamic_cast<PBFTMessage*>(msg);
+
+    switch(myMsg->getType()){
+        case REQUEST:{
+            // Cast again the message to the needed format
+            PBFTRequestMessage *req = dynamic_cast<PBFTRequestMessage*>(myMsg);
+
+            break;
+        }
+
+        case PREPREPARE:
+            break;
+
+        case PREPARE:
+            break;
+
+        case COMMIT:
+            break;
+
+        case REPLY:
+            break;
+
+        default:
+            error("handleUDPMessage(): Unknown message type!");
+            break;
+    }
 
     delete msg;
 }
@@ -224,13 +246,13 @@ void PBFT::broadcast(cMessage* msg){
            << endl;
 
     PBFTMessage *myMsg = dynamic_cast<PBFTMessage*>(msg);
-
     NodeVector* nodes = callNeighborSet(k);
-    for(int i=0; i<(int)nodes->size(); i++){
-        // send UDP message
-        // PBFTMessage* msg = new PBFTMessage("PBFTMessage");
-        nodes->at(i).setPort(2048);
 
+    // TODO Since I am a replica, send the message also to me
+    for(int i=0; i<(int)nodes->size(); i++){
+
+        // send UDP message
+        nodes->at(i).setPort(2048);
         sendMessageToUDP(nodes->at(i), myMsg->dup());
     }
 }

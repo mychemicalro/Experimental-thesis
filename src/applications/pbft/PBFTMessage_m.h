@@ -24,25 +24,31 @@
 /**
  * Enum generated from <tt>applications/pbft/PBFTMessage.msg</tt> by opp_msgc.
  * <pre>
- * enum MessageType 
- * {
- *     REQUEST = 1;           
+ * enum MessageType {
+ *     REQUEST = 1;
+ * 	PREPREPARE = 2;
+ * 	PREPARE = 3;
+ * 	COMMIT = 4;
+ * 	REPLY = 5;
  * }
  * </pre>
  */
 enum MessageType {
-    REQUEST = 1
+    REQUEST = 1,
+    PREPREPARE = 2,
+    PREPARE = 3,
+    COMMIT = 4,
+    REPLY = 5
 };
 
 /**
  * Class generated from <tt>applications/pbft/PBFTMessage.msg</tt> by opp_msgc.
  * <pre>
- * packet PBFTMessage 
- * {
+ * packet PBFTMessage {
  *     int type enum (MessageType);     
  *     TransportAddress senderAddress;  
  *     OverlayKey oKey;				 
- *     simtime_t timestamp; 			 
+ *     
  *     Operation op;
  * }
  * </pre>
@@ -53,7 +59,6 @@ class PBFTMessage : public ::cPacket
     int type_var;
     TransportAddress senderAddress_var;
     OverlayKey oKey_var;
-    simtime_t timestamp_var;
     Operation op_var;
 
   private:
@@ -81,8 +86,6 @@ class PBFTMessage : public ::cPacket
     virtual OverlayKey& getOKey();
     virtual const OverlayKey& getOKey() const {return const_cast<PBFTMessage*>(this)->getOKey();}
     virtual void setOKey(const OverlayKey& oKey);
-    virtual simtime_t getTimestamp() const;
-    virtual void setTimestamp(simtime_t timestamp);
     virtual Operation& getOp();
     virtual const Operation& getOp() const {return const_cast<PBFTMessage*>(this)->getOp();}
     virtual void setOp(const Operation& op);
@@ -90,6 +93,176 @@ class PBFTMessage : public ::cPacket
 
 inline void doPacking(cCommBuffer *b, PBFTMessage& obj) {obj.parsimPack(b);}
 inline void doUnpacking(cCommBuffer *b, PBFTMessage& obj) {obj.parsimUnpack(b);}
+
+/**
+ * Class generated from <tt>applications/pbft/PBFTMessage.msg</tt> by opp_msgc.
+ * <pre>
+ * packet PBFTRequestMessage extends PBFTMessage {
+ * 	type = REQUEST;
+ * }
+ * </pre>
+ */
+class PBFTRequestMessage : public ::PBFTMessage
+{
+  protected:
+
+  private:
+    void copy(const PBFTRequestMessage& other);
+
+  protected:
+    // protected and unimplemented operator==(), to prevent accidental usage
+    bool operator==(const PBFTRequestMessage&);
+
+  public:
+    PBFTRequestMessage(const char *name=NULL, int kind=0);
+    PBFTRequestMessage(const PBFTRequestMessage& other);
+    virtual ~PBFTRequestMessage();
+    PBFTRequestMessage& operator=(const PBFTRequestMessage& other);
+    virtual PBFTRequestMessage *dup() const {return new PBFTRequestMessage(*this);}
+    virtual void parsimPack(cCommBuffer *b);
+    virtual void parsimUnpack(cCommBuffer *b);
+
+    // field getter/setter methods
+};
+
+inline void doPacking(cCommBuffer *b, PBFTRequestMessage& obj) {obj.parsimPack(b);}
+inline void doUnpacking(cCommBuffer *b, PBFTRequestMessage& obj) {obj.parsimUnpack(b);}
+
+/**
+ * Class generated from <tt>applications/pbft/PBFTMessage.msg</tt> by opp_msgc.
+ * <pre>
+ * packet PBFTPreprepareMessage extends PBFTMessage {
+ * 	type = PREPREPARE;
+ * }
+ * </pre>
+ */
+class PBFTPreprepareMessage : public ::PBFTMessage
+{
+  protected:
+
+  private:
+    void copy(const PBFTPreprepareMessage& other);
+
+  protected:
+    // protected and unimplemented operator==(), to prevent accidental usage
+    bool operator==(const PBFTPreprepareMessage&);
+
+  public:
+    PBFTPreprepareMessage(const char *name=NULL, int kind=0);
+    PBFTPreprepareMessage(const PBFTPreprepareMessage& other);
+    virtual ~PBFTPreprepareMessage();
+    PBFTPreprepareMessage& operator=(const PBFTPreprepareMessage& other);
+    virtual PBFTPreprepareMessage *dup() const {return new PBFTPreprepareMessage(*this);}
+    virtual void parsimPack(cCommBuffer *b);
+    virtual void parsimUnpack(cCommBuffer *b);
+
+    // field getter/setter methods
+};
+
+inline void doPacking(cCommBuffer *b, PBFTPreprepareMessage& obj) {obj.parsimPack(b);}
+inline void doUnpacking(cCommBuffer *b, PBFTPreprepareMessage& obj) {obj.parsimUnpack(b);}
+
+/**
+ * Class generated from <tt>applications/pbft/PBFTMessage.msg</tt> by opp_msgc.
+ * <pre>
+ * packet PBFTPrepareMessage extends PBFTMessage {
+ * 	type = PREPARE;
+ * }
+ * </pre>
+ */
+class PBFTPrepareMessage : public ::PBFTMessage
+{
+  protected:
+
+  private:
+    void copy(const PBFTPrepareMessage& other);
+
+  protected:
+    // protected and unimplemented operator==(), to prevent accidental usage
+    bool operator==(const PBFTPrepareMessage&);
+
+  public:
+    PBFTPrepareMessage(const char *name=NULL, int kind=0);
+    PBFTPrepareMessage(const PBFTPrepareMessage& other);
+    virtual ~PBFTPrepareMessage();
+    PBFTPrepareMessage& operator=(const PBFTPrepareMessage& other);
+    virtual PBFTPrepareMessage *dup() const {return new PBFTPrepareMessage(*this);}
+    virtual void parsimPack(cCommBuffer *b);
+    virtual void parsimUnpack(cCommBuffer *b);
+
+    // field getter/setter methods
+};
+
+inline void doPacking(cCommBuffer *b, PBFTPrepareMessage& obj) {obj.parsimPack(b);}
+inline void doUnpacking(cCommBuffer *b, PBFTPrepareMessage& obj) {obj.parsimUnpack(b);}
+
+/**
+ * Class generated from <tt>applications/pbft/PBFTMessage.msg</tt> by opp_msgc.
+ * <pre>
+ * packet PBFTCommitMessage extends PBFTMessage {
+ * 	type = COMMIT;
+ * }
+ * </pre>
+ */
+class PBFTCommitMessage : public ::PBFTMessage
+{
+  protected:
+
+  private:
+    void copy(const PBFTCommitMessage& other);
+
+  protected:
+    // protected and unimplemented operator==(), to prevent accidental usage
+    bool operator==(const PBFTCommitMessage&);
+
+  public:
+    PBFTCommitMessage(const char *name=NULL, int kind=0);
+    PBFTCommitMessage(const PBFTCommitMessage& other);
+    virtual ~PBFTCommitMessage();
+    PBFTCommitMessage& operator=(const PBFTCommitMessage& other);
+    virtual PBFTCommitMessage *dup() const {return new PBFTCommitMessage(*this);}
+    virtual void parsimPack(cCommBuffer *b);
+    virtual void parsimUnpack(cCommBuffer *b);
+
+    // field getter/setter methods
+};
+
+inline void doPacking(cCommBuffer *b, PBFTCommitMessage& obj) {obj.parsimPack(b);}
+inline void doUnpacking(cCommBuffer *b, PBFTCommitMessage& obj) {obj.parsimUnpack(b);}
+
+/**
+ * Class generated from <tt>applications/pbft/PBFTMessage.msg</tt> by opp_msgc.
+ * <pre>
+ * packet PBFTReplyMessage extends PBFTMessage {
+ * 	type = REPLY;
+ * }
+ * </pre>
+ */
+class PBFTReplyMessage : public ::PBFTMessage
+{
+  protected:
+
+  private:
+    void copy(const PBFTReplyMessage& other);
+
+  protected:
+    // protected and unimplemented operator==(), to prevent accidental usage
+    bool operator==(const PBFTReplyMessage&);
+
+  public:
+    PBFTReplyMessage(const char *name=NULL, int kind=0);
+    PBFTReplyMessage(const PBFTReplyMessage& other);
+    virtual ~PBFTReplyMessage();
+    PBFTReplyMessage& operator=(const PBFTReplyMessage& other);
+    virtual PBFTReplyMessage *dup() const {return new PBFTReplyMessage(*this);}
+    virtual void parsimPack(cCommBuffer *b);
+    virtual void parsimUnpack(cCommBuffer *b);
+
+    // field getter/setter methods
+};
+
+inline void doPacking(cCommBuffer *b, PBFTReplyMessage& obj) {obj.parsimPack(b);}
+inline void doUnpacking(cCommBuffer *b, PBFTReplyMessage& obj) {obj.parsimUnpack(b);}
 
 
 #endif // _PBFTMESSAGE_M_H_
