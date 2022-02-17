@@ -45,11 +45,11 @@ enum MessageType {
  * Class generated from <tt>applications/pbft/PBFTMessage.msg</tt> by opp_msgc.
  * <pre>
  * packet PBFTMessage {
- *     int type enum (MessageType);     
- *     
- *     
- *     
- *     
+ *     int type enum (MessageType);         
+ * 
+ * 	
+ *     TransportAddress senderAddress;      
+ *     OverlayKey senderKey;				 
  *     
  * }
  * </pre>
@@ -58,6 +58,8 @@ class PBFTMessage : public ::cPacket
 {
   protected:
     int type_var;
+    TransportAddress senderAddress_var;
+    OverlayKey senderKey_var;
 
   private:
     void copy(const PBFTMessage& other);
@@ -78,6 +80,12 @@ class PBFTMessage : public ::cPacket
     // field getter/setter methods
     virtual int getType() const;
     virtual void setType(int type);
+    virtual TransportAddress& getSenderAddress();
+    virtual const TransportAddress& getSenderAddress() const {return const_cast<PBFTMessage*>(this)->getSenderAddress();}
+    virtual void setSenderAddress(const TransportAddress& senderAddress);
+    virtual OverlayKey& getSenderKey();
+    virtual const OverlayKey& getSenderKey() const {return const_cast<PBFTMessage*>(this)->getSenderKey();}
+    virtual void setSenderKey(const OverlayKey& senderKey);
 };
 
 inline void doPacking(cCommBuffer *b, PBFTMessage& obj) {obj.parsimPack(b);}
@@ -187,12 +195,22 @@ inline void doUnpacking(cCommBuffer *b, PBFTPreprepareMessage& obj) {obj.parsimU
  * <pre>
  * packet PBFTPrepareMessage extends PBFTMessage {
  * 	type = PREPARE;
+ * 	int view;
+ * 	int seqNumber;
+ * 	string digest;
+ * 	TransportAddress creatorAddress;      
+ *     OverlayKey creatorKey;				 
  * }
  * </pre>
  */
 class PBFTPrepareMessage : public ::PBFTMessage
 {
   protected:
+    int view_var;
+    int seqNumber_var;
+    opp_string digest_var;
+    TransportAddress creatorAddress_var;
+    OverlayKey creatorKey_var;
 
   private:
     void copy(const PBFTPrepareMessage& other);
@@ -211,6 +229,18 @@ class PBFTPrepareMessage : public ::PBFTMessage
     virtual void parsimUnpack(cCommBuffer *b);
 
     // field getter/setter methods
+    virtual int getView() const;
+    virtual void setView(int view);
+    virtual int getSeqNumber() const;
+    virtual void setSeqNumber(int seqNumber);
+    virtual const char * getDigest() const;
+    virtual void setDigest(const char * digest);
+    virtual TransportAddress& getCreatorAddress();
+    virtual const TransportAddress& getCreatorAddress() const {return const_cast<PBFTPrepareMessage*>(this)->getCreatorAddress();}
+    virtual void setCreatorAddress(const TransportAddress& creatorAddress);
+    virtual OverlayKey& getCreatorKey();
+    virtual const OverlayKey& getCreatorKey() const {return const_cast<PBFTPrepareMessage*>(this)->getCreatorKey();}
+    virtual void setCreatorKey(const OverlayKey& creatorKey);
 };
 
 inline void doPacking(cCommBuffer *b, PBFTPrepareMessage& obj) {obj.parsimPack(b);}

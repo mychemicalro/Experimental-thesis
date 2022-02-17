@@ -78,6 +78,7 @@ public:
         REPLICAANDCLIENT = 2,
     };
 
+
     States getState() { return state; };
     NodeTypes getNodeType(){ return nodeType; }
 
@@ -104,8 +105,15 @@ protected:
     Blockchain* chainModule;
     ReplicaState* replicaStateModule;
 
+    int h; // low watermark
+    int H; // high watermark
+
     // Algorithm attributes
     int sequenceNumber;
+
+    bool S_PREPREPARE;
+    bool S_PREPARE;
+    bool S_COMMIT;
 
 };
 

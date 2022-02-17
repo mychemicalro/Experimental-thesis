@@ -34,6 +34,14 @@ void PBFT::initializeApp(int stage){
 
     sequenceNumber = 0;
 
+    // TODO watermarks advance mode
+    h = 0;
+    H = 128;
+
+    S_PREPREPARE = false;
+    S_PREPARE = false;
+    S_COMMIT = false;
+
     WATCH(numSent);
     WATCH(numReceived);
     WATCH(k);
@@ -155,7 +163,7 @@ void PBFT::handleTimerEvent(cMessage* msg) {
         // Create a new operation and broadcast it
 
         Operation op = Operation(this->overlay->getThisNode().getKey(), thisNode.getIp(), simTime());
-        PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTMessage");
+        PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTRequestMessage");
         msg->setOp(op);
         msg->setTimestamp(simTime()); // TODO not always needed
         msg->setClientKey(this->overlay->getThisNode().getKey());
@@ -205,47 +213,119 @@ void PBFT::handleUDPMessage(cMessage* msg) {
     PBFTMessage *myMsg = dynamic_cast<PBFTMessage*>(msg);
     numReceived ++;
 
+
     switch(myMsg->getType()){
-        case REQUEST:{
+        case REQUEST: {
             // Cast again the message to the needed format
             PBFTRequestMessage *req = dynamic_cast<PBFTRequestMessage*>(myMsg);
-            EV << "sender key:" << req->getOp().getOriginatorKey() << endl;
+            EV << "Received message at: " << thisNode.getIp() << " with digest: " << req->getOp().computeHash() << endl;
+
+            // Check if already seen
+            if (replicaStateModule->seenRequest(req)){
+                EV << "Request already seen - Request not processed -- returning " << endl;
+                return;
+            }
 
             // Insert into log, save things like digest, sender, etc
-            replicaStateModule->addToLog(req);
+            replicaStateModule->addToRequestsLog(req);
+
+            // Gossip the request
+            broadcast(req);
+
+
 
             // If I am the primary and if authentication is OK, assign sequence number and multicast PREPREPARE message
             if (replicaStateModule->getPrimary()) {
                 sequenceNumber ++;
-                PBFTPreprepareMessage* preprepare_msg = new PBFTPreprepareMessage("PBFTMessage");
+                PBFTPreprepareMessage* preprepare_msg = new PBFTPreprepareMessage("PBFTPreprepareMessage");
                 preprepare_msg->setView(replicaStateModule->getCurrentView());
                 preprepare_msg->setSeqNumber(sequenceNumber);
 
                 preprepare_msg->setDigest(req->getOp().computeHash());
 
-                // TODO compute message digest
                 broadcast(preprepare_msg);
 
+                // I could also add here the PREPREPARE message to my log -> this might be an error
+                // replicaStateModule->addToPrepreparesLog(preprepare_msg);
 
-/*
-                Operation op = Operation(this->overlay->getThisNode().getKey(), thisNode.getIp(), simTime());
-                msg->setOp(op);
-                msg->setTimestamp(simTime());
-                msg->setClientKey(this->overlay->getThisNode().getKey());
-                msg->setClientAddress(thisNode); // This includes also the port, like 10.0.0.1:2048
-*/
             }
-
-
-
 
             break;
         }
 
-        case PREPREPARE:
+        case PREPREPARE: {
+            PBFTPreprepareMessage *req = dynamic_cast<PBFTPreprepareMessage*>(myMsg);
+            /**
+             * A replica accepts this message if:
+             *      - it has the same view number
+             *      - message is authentic -> not controlled by us
+             *      - n between h and H
+             *      - the replica has not accepted a PRE-PREPARE message with
+             *          same view and seqNumber, but with different digest.
+             *
+             * Once accepted:
+             *      - enters the prepare phase
+             *      - adds m in its log !? TODO -> also the original message comes with the PREPREPARE message
+             *      multicasts a PREPARE message
+             */
+
+            // Check if already processed this message?
+            if (replicaStateModule->seenRequest(req)){
+                EV << "Preprepare already seen - Preprepare not processed -- returning " << endl;
+                return;
+            }
+
+            // I have to gossip it
+            broadcast(req);
+
+            if (replicaStateModule->getCurrentView() != req->getView()){
+                EV << "Wrong view! - Preprepare not processed -- returning " << endl;
+                return;
+            }
+
+            if (req->getSeqNumber() < h || req->getSeqNumber() > H){
+                EV << "Wrong seqNumber! - Preprepare not processed -- returning " << endl;
+                return;
+            }
+            // TODO Define better
+            if (S_PREPREPARE){
+                EV << "Already in PREPREPARE phase! - Preprepare not processed -- returning " << endl;
+                return;
+            }
+
+            // Now the replica is ready to accept the PREPREPARE message
+            EV << "Replica accepted a PREPREPARE message! " << endl;
+            replicaStateModule->addToPrepreparesLog(req);
+
+            // TODO save somewhere the PREPREPARE message associated when entered the PREPARE phase
+
+
+            // If the replica does not have the message in the log what happens?
+            if (replicaStateModule->digestInRequestsLog(req->getDigest())){
+                S_PREPARE = true;
+
+                // Add the message to the seen ones
+                replicaStateModule->addToPrepreparesLog(req);
+
+                // multicast a PREPARE message
+                EV << "Replica has to multicast a prepare message " << endl;
+
+                PBFTPrepareMessage* prepare_msg = new PBFTPrepareMessage("PBFTPrepareMessage");
+                prepare_msg->setView(replicaStateModule->getCurrentView());
+                prepare_msg->setSeqNumber(req->getSeqNumber());
+                prepare_msg->setDigest(req->getDigest());
+                prepare_msg->setCreatorAddress(thisNode);
+                prepare_msg->setCreatorKey(overlay->getThisNode().getKey());
+
+                broadcast(prepare_msg);
+
+            }
+
             break;
+        }
 
         case PREPARE:
+            EV << "Received PREPARE MESSAGE!!! " << endl;
             break;
 
         case COMMIT:

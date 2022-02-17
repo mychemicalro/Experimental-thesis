@@ -24,11 +24,11 @@ enum MessageType {
 // now we declare the message proper
 
 packet PBFTMessage {
-    int type enum (MessageType);     // message type
-    // simtime_t timestamp; 			 // timestamp when the messages was generated.
-    
-    // TransportAddress senderAddress;  // address of the node that sent the message
-    // OverlayKey senderKey;				 // overlayKey of the client that sent the message
+    int type enum (MessageType);         // message type
+
+	// These are envelop data TODO understand if these data are necessary      
+    TransportAddress senderAddress;      // address of the node that sent the message
+    OverlayKey senderKey;				 // overlayKey of the node that sent the message
     
 }
 
@@ -49,6 +49,11 @@ packet PBFTPreprepareMessage extends PBFTMessage {
 
 packet PBFTPrepareMessage extends PBFTMessage {
 	type = PREPARE;
+	int view;
+	int seqNumber;
+	string digest;
+	TransportAddress creatorAddress;      // address of the node that created the PREPARE message
+    OverlayKey creatorKey;				 // overlayKey of the node that created the PREPARE message
 }
 
 packet PBFTCommitMessage extends PBFTMessage {

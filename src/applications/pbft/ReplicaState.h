@@ -11,12 +11,17 @@
 #include <NodeVector.h>
 #include <omnetpp.h>
 #include <InitStages.h>
+#include <vector>
+#include "PBFTMessage_m.h"
 
 /**
  * Class for storing the replica state and the message log, that will have to contain
- * most of the client requests.
+ * most of the client requests and lots of other messages.
  * Initially, the replica is not primary.
- * TODO
+ *
+ * It maintains:
+ *      - a requests vector
+ *      -
  *
  */
 
@@ -43,10 +48,24 @@ public:
     void setPrimary(bool b){ primary = b; }
 
     /**
-     * Add message to log
+     * Add message to requests log
      */
-    void addToLog(cMessage* msg);
+    void addToRequestsLog(cMessage* msg);
 
+    /**
+     * Check if a given message digest is in requests
+     */
+    bool digestInRequestsLog(const char* digest);
+
+    /**
+     * Add message to preprepares log
+     */
+    void addToPrepreparesLog(cMessage* msg);
+
+    /**
+     * Returns true if the request is already present in requests
+     */
+    bool seenRequest(cMessage* msg);
 
 protected:
 
@@ -54,7 +73,10 @@ private:
     // Class variables
     int currentView;
     bool primary; /* this replica is primary*/
+
     // TODO Message log
+    std::vector<PBFTRequestMessage> requests;
+    std::vector<PBFTPreprepareMessage> preprepares;
 };
 
 

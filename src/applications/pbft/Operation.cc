@@ -25,10 +25,10 @@ Operation::Operation(){
 
 }
 
+// TODO Adjust the hash computation
 const char* Operation::computeHash() {
     stringstream ss;
-    ss << op << timestamp;
-    EV << "DIGEST: " << ss << endl;
+    ss << op << timestamp << originator.first.toString() << originator.second.str();
     const char* c = sha256(ss.str()).c_str();
     return c;
 }
@@ -37,14 +37,5 @@ Operation& Operation::getOp(){
     return *this;
 }
 
-
-
-/*
-std::ostream& operator<<(std::ostream& os, const Operation& operation) {
-    // os << operation.getOp() << " at" << operation.getOriginator() << " with timestamp: " << operation.getTimestamp().;
-    os << "Some operation";
-    return os;
-};
-*/
 
 
