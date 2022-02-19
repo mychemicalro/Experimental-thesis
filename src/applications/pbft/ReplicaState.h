@@ -50,7 +50,7 @@ public:
     /**
      * Add message to requests log
      */
-    void addToRequestsLog(cMessage* msg);
+    void addToRequestsLog(PBFTRequestMessage* msg);
 
     /**
      * Check if a given message digest is in requests
@@ -60,12 +60,29 @@ public:
     /**
      * Add message to preprepares log
      */
-    void addToPrepreparesLog(cMessage* msg);
+    void addToPrepreparesLog(PBFTPreprepareMessage* msg);
+
+    /**
+     * Add message to prepares log
+     */
+    void addToPreparesLog(PBFTPrepareMessage* msg);
+
+    void addToCommitsLog(PBFTCommitMessage* msg);
 
     /**
      * Returns true if the request is already present in requests
      */
     bool seenRequest(cMessage* msg);
+
+    /**
+     * Check if there is some PreparedCertificate for some message m.
+     * The messages should be unique in the preprepares vector.
+     * So a simple count should be enough,
+     * where digest, seqNum and v are the same as in the request.
+     */
+    bool searchPreparedCertificate(PBFTPrepareMessage* m);
+
+    bool searchCommittedCertificate(PBFTCommitMessage* m);
 
 protected:
 
@@ -77,6 +94,11 @@ private:
     // TODO Message log
     std::vector<PBFTRequestMessage> requests;
     std::vector<PBFTPreprepareMessage> preprepares;
+    std::vector<PBFTPrepareMessage> prepares;
+    std::vector<PBFTCommitMessage> commits;
+
+    std::map<const char*, std::vector<PBFTPrepareMessage> > prepares_map;
+
 };
 
 

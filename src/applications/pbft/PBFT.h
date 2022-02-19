@@ -4,6 +4,7 @@
 #include <omnetpp.h>
 #include "BaseApp.h"
 
+
 class Blockchain;
 class ReplicaState;
 
@@ -96,6 +97,7 @@ public:
      * Call initializeChain in Blockchain module
      */
     void initializeFriendModules();
+
 
 
 protected:

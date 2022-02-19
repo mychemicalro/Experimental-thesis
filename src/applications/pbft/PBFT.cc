@@ -171,6 +171,8 @@ void PBFT::handleTimerEvent(cMessage* msg) {
 
         broadcast(msg);
 
+        scheduleAt(simTime() + 10, clientTimer);
+
     } else {
         delete msg; // unknown packet
     }
@@ -218,10 +220,10 @@ void PBFT::handleUDPMessage(cMessage* msg) {
         case REQUEST: {
             // Cast again the message to the needed format
             PBFTRequestMessage *req = dynamic_cast<PBFTRequestMessage*>(myMsg);
-            EV << "Received message at: " << thisNode.getIp() << " with digest: " << req->getOp().computeHash() << endl;
+            EV << "Received message at: " << thisNode.getIp() << " with digest: " << req->getOp().getHash() << endl;
 
             // Check if already seen
-            if (replicaStateModule->seenRequest(req)){
+            if (replicaStateModule->seenRequest(msg)){
                 EV << "Request already seen - Request not processed -- returning " << endl;
                 return;
             }
@@ -232,10 +234,9 @@ void PBFT::handleUDPMessage(cMessage* msg) {
             // Gossip the request
             broadcast(req);
 
-
-
             // If I am the primary and if authentication is OK, assign sequence number and multicast PREPREPARE message
             if (replicaStateModule->getPrimary()) {
+                EV << "PRIMARY: I am processing a request and trying to send Preprepare messages in broadcast" << endl;
                 sequenceNumber ++;
                 PBFTPreprepareMessage* preprepare_msg = new PBFTPreprepareMessage("PBFTPreprepareMessage");
                 preprepare_msg->setView(replicaStateModule->getCurrentView());
@@ -266,7 +267,7 @@ void PBFT::handleUDPMessage(cMessage* msg) {
              * Once accepted:
              *      - enters the prepare phase
              *      - adds m in its log !? TODO -> also the original message comes with the PREPREPARE message
-             *      multicasts a PREPARE message
+             *      - multicasts a PREPARE message
              */
 
             // Check if already processed this message?
@@ -275,8 +276,12 @@ void PBFT::handleUDPMessage(cMessage* msg) {
                 return;
             }
 
-            // I have to gossip it
-            broadcast(req);
+            // I have to gossip it -> Gossip the request in any case? (Like different view, wrong seqNum) TODO
+            // If I am not the primary, I can broadcast it since I have already broadcasted the PREPREPARE
+
+            if (!isPrimary()){
+                broadcast(req);
+            }
 
             if (replicaStateModule->getCurrentView() != req->getView()){
                 EV << "Wrong view! - Preprepare not processed -- returning " << endl;
@@ -287,22 +292,22 @@ void PBFT::handleUDPMessage(cMessage* msg) {
                 EV << "Wrong seqNumber! - Preprepare not processed -- returning " << endl;
                 return;
             }
-            // TODO Define better
-            if (S_PREPREPARE){
-                EV << "Already in PREPREPARE phase! - Preprepare not processed -- returning " << endl;
+            // If I'have already accepted a PREPREPARE message for the same v and seqNum ... TODO
+            if (S_PREPARE){
+                EV << "Already in PREPARE phase! - Preprepare not processed -- returning " << endl;
                 return;
             }
 
             // Now the replica is ready to accept the PREPREPARE message
             EV << "Replica accepted a PREPREPARE message! " << endl;
-            replicaStateModule->addToPrepreparesLog(req);
+            // replicaStateModule->addToPrepreparesLog(req);
 
             // TODO save somewhere the PREPREPARE message associated when entered the PREPARE phase
 
 
-            // If the replica does not have the message in the log what happens?
+            // If the replica does not have the message in the log what happens? TODO
             if (replicaStateModule->digestInRequestsLog(req->getDigest())){
-                S_PREPARE = true;
+                // S_PREPARE = true;
 
                 // Add the message to the seen ones
                 replicaStateModule->addToPrepreparesLog(req);
@@ -324,12 +329,58 @@ void PBFT::handleUDPMessage(cMessage* msg) {
             break;
         }
 
-        case PREPARE:
-            EV << "Received PREPARE MESSAGE!!! " << endl;
-            break;
+        case PREPARE: {
+            PBFTPrepareMessage *req = dynamic_cast<PBFTPrepareMessage*>(myMsg);
 
-        case COMMIT:
+
+            if (replicaStateModule->seenRequest(req)){
+                EV << "Prepare already seen - Prepare not processed -- returning " << endl;
+                return;
+            }
+
+            EV << "Received new PREPARE message " << endl;
+            replicaStateModule->addToPreparesLog(req);
+
+            // Gossip the message If I see it for the first time, at any condition for now
+            broadcast(req);
+
+
+            if (replicaStateModule->searchPreparedCertificate(req)){
+                // PreparedCertificate found! --> send COMMIT
+
+                PBFTCommitMessage* commit_msg = new PBFTCommitMessage("PBFTCommitMessage");
+                commit_msg->setView(req->getView());
+                commit_msg->setSeqNumber(req->getSeqNumber());
+                commit_msg->setDigest(req->getDigest());
+                commit_msg->setCreatorAddress(thisNode);
+                commit_msg->setCreatorKey(overlay->getThisNode().getKey());
+
+                broadcast(commit_msg);
+            }
+
             break;
+        }
+
+        case COMMIT: {
+            PBFTCommitMessage *req = dynamic_cast<PBFTCommitMessage*>(myMsg);
+
+            if (replicaStateModule->seenRequest(req)){
+                EV << "Commit already seen - Commit not processed -- returning " << endl;
+                return;
+            }
+
+            EV << "Received new COMMIT message " << endl;
+            replicaStateModule->addToCommitsLog(req);
+
+            // Gossip the message If I see it for the first time, at any condition for now
+            broadcast(req);
+
+            if(replicaStateModule->searchCommittedCertificate(req)){
+                // Ready to commit
+            }
+
+            break;
+        }
 
         case REPLY: {
             PBFTReplyMessage *rep = dynamic_cast<PBFTReplyMessage*>(myMsg);
@@ -405,9 +456,6 @@ bool PBFT::isPrimary(){
 
     return false;
 }
-
-
-
 
 
 

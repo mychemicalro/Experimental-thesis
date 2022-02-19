@@ -58,6 +58,11 @@ packet PBFTPrepareMessage extends PBFTMessage {
 
 packet PBFTCommitMessage extends PBFTMessage {
 	type = COMMIT;
+	int view;
+	int seqNumber;
+	string digest;
+	TransportAddress creatorAddress;      // address of the node that created the PREPARE message
+    OverlayKey creatorKey;				 // overlayKey of the node that created the PREPARE message
 }
 
 packet PBFTReplyMessage extends PBFTMessage {

@@ -251,12 +251,22 @@ inline void doUnpacking(cCommBuffer *b, PBFTPrepareMessage& obj) {obj.parsimUnpa
  * <pre>
  * packet PBFTCommitMessage extends PBFTMessage {
  * 	type = COMMIT;
+ * 	int view;
+ * 	int seqNumber;
+ * 	string digest;
+ * 	TransportAddress creatorAddress;      
+ *     OverlayKey creatorKey;				 
  * }
  * </pre>
  */
 class PBFTCommitMessage : public ::PBFTMessage
 {
   protected:
+    int view_var;
+    int seqNumber_var;
+    opp_string digest_var;
+    TransportAddress creatorAddress_var;
+    OverlayKey creatorKey_var;
 
   private:
     void copy(const PBFTCommitMessage& other);
@@ -275,6 +285,18 @@ class PBFTCommitMessage : public ::PBFTMessage
     virtual void parsimUnpack(cCommBuffer *b);
 
     // field getter/setter methods
+    virtual int getView() const;
+    virtual void setView(int view);
+    virtual int getSeqNumber() const;
+    virtual void setSeqNumber(int seqNumber);
+    virtual const char * getDigest() const;
+    virtual void setDigest(const char * digest);
+    virtual TransportAddress& getCreatorAddress();
+    virtual const TransportAddress& getCreatorAddress() const {return const_cast<PBFTCommitMessage*>(this)->getCreatorAddress();}
+    virtual void setCreatorAddress(const TransportAddress& creatorAddress);
+    virtual OverlayKey& getCreatorKey();
+    virtual const OverlayKey& getCreatorKey() const {return const_cast<PBFTCommitMessage*>(this)->getCreatorKey();}
+    virtual void setCreatorKey(const OverlayKey& creatorKey);
 };
 
 inline void doPacking(cCommBuffer *b, PBFTCommitMessage& obj) {obj.parsimPack(b);}

@@ -19,6 +19,8 @@ class Operation {
         Operation& getOp();
         OverlayKey getOriginatorKey(){return originator.first;}
         IPvXAddress getIp(){return originator.second;}
+        string getHash(){return hash;}
+
 
         // And setters
         // TODO
@@ -26,9 +28,12 @@ class Operation {
         // Other methods
         const char* computeHash();
 
+        string cHash() const;
+
     private:
         string op;
         simtime_t timestamp;
         pair<OverlayKey, IPvXAddress> originator;
+        string hash;
 
 };

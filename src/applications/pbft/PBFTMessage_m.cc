@@ -1222,6 +1222,10 @@ Register_Class(PBFTCommitMessage);
 PBFTCommitMessage::PBFTCommitMessage(const char *name, int kind) : PBFTMessage(name,kind)
 {
     this->setType(COMMIT);
+
+    this->view_var = 0;
+    this->seqNumber_var = 0;
+    this->digest_var = 0;
 }
 
 PBFTCommitMessage::PBFTCommitMessage(const PBFTCommitMessage& other) : PBFTMessage(other)
@@ -1243,16 +1247,81 @@ PBFTCommitMessage& PBFTCommitMessage::operator=(const PBFTCommitMessage& other)
 
 void PBFTCommitMessage::copy(const PBFTCommitMessage& other)
 {
+    this->view_var = other.view_var;
+    this->seqNumber_var = other.seqNumber_var;
+    this->digest_var = other.digest_var;
+    this->creatorAddress_var = other.creatorAddress_var;
+    this->creatorKey_var = other.creatorKey_var;
 }
 
 void PBFTCommitMessage::parsimPack(cCommBuffer *b)
 {
     PBFTMessage::parsimPack(b);
+    doPacking(b,this->view_var);
+    doPacking(b,this->seqNumber_var);
+    doPacking(b,this->digest_var);
+    doPacking(b,this->creatorAddress_var);
+    doPacking(b,this->creatorKey_var);
 }
 
 void PBFTCommitMessage::parsimUnpack(cCommBuffer *b)
 {
     PBFTMessage::parsimUnpack(b);
+    doUnpacking(b,this->view_var);
+    doUnpacking(b,this->seqNumber_var);
+    doUnpacking(b,this->digest_var);
+    doUnpacking(b,this->creatorAddress_var);
+    doUnpacking(b,this->creatorKey_var);
+}
+
+int PBFTCommitMessage::getView() const
+{
+    return view_var;
+}
+
+void PBFTCommitMessage::setView(int view)
+{
+    this->view_var = view;
+}
+
+int PBFTCommitMessage::getSeqNumber() const
+{
+    return seqNumber_var;
+}
+
+void PBFTCommitMessage::setSeqNumber(int seqNumber)
+{
+    this->seqNumber_var = seqNumber;
+}
+
+const char * PBFTCommitMessage::getDigest() const
+{
+    return digest_var.c_str();
+}
+
+void PBFTCommitMessage::setDigest(const char * digest)
+{
+    this->digest_var = digest;
+}
+
+TransportAddress& PBFTCommitMessage::getCreatorAddress()
+{
+    return creatorAddress_var;
+}
+
+void PBFTCommitMessage::setCreatorAddress(const TransportAddress& creatorAddress)
+{
+    this->creatorAddress_var = creatorAddress;
+}
+
+OverlayKey& PBFTCommitMessage::getCreatorKey()
+{
+    return creatorKey_var;
+}
+
+void PBFTCommitMessage::setCreatorKey(const OverlayKey& creatorKey)
+{
+    this->creatorKey_var = creatorKey;
 }
 
 class PBFTCommitMessageDescriptor : public cClassDescriptor
@@ -1302,7 +1371,7 @@ const char *PBFTCommitMessageDescriptor::getProperty(const char *propertyname) c
 int PBFTCommitMessageDescriptor::getFieldCount(void *object) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
-    return basedesc ? 0+basedesc->getFieldCount(object) : 0;
+    return basedesc ? 5+basedesc->getFieldCount(object) : 5;
 }
 
 unsigned int PBFTCommitMessageDescriptor::getFieldTypeFlags(void *object, int field) const
@@ -1313,7 +1382,14 @@ unsigned int PBFTCommitMessageDescriptor::getFieldTypeFlags(void *object, int fi
             return basedesc->getFieldTypeFlags(object, field);
         field -= basedesc->getFieldCount(object);
     }
-    return 0;
+    static unsigned int fieldTypeFlags[] = {
+        FD_ISEDITABLE,
+        FD_ISEDITABLE,
+        FD_ISEDITABLE,
+        FD_ISCOMPOUND,
+        FD_ISCOMPOUND,
+    };
+    return (field>=0 && field<5) ? fieldTypeFlags[field] : 0;
 }
 
 const char *PBFTCommitMessageDescriptor::getFieldName(void *object, int field) const
@@ -1324,12 +1400,25 @@ const char *PBFTCommitMessageDescriptor::getFieldName(void *object, int field) c
             return basedesc->getFieldName(object, field);
         field -= basedesc->getFieldCount(object);
     }
-    return NULL;
+    static const char *fieldNames[] = {
+        "view",
+        "seqNumber",
+        "digest",
+        "creatorAddress",
+        "creatorKey",
+    };
+    return (field>=0 && field<5) ? fieldNames[field] : NULL;
 }
 
 int PBFTCommitMessageDescriptor::findField(void *object, const char *fieldName) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
+    int base = basedesc ? basedesc->getFieldCount(object) : 0;
+    if (fieldName[0]=='v' && strcmp(fieldName, "view")==0) return base+0;
+    if (fieldName[0]=='s' && strcmp(fieldName, "seqNumber")==0) return base+1;
+    if (fieldName[0]=='d' && strcmp(fieldName, "digest")==0) return base+2;
+    if (fieldName[0]=='c' && strcmp(fieldName, "creatorAddress")==0) return base+3;
+    if (fieldName[0]=='c' && strcmp(fieldName, "creatorKey")==0) return base+4;
     return basedesc ? basedesc->findField(object, fieldName) : -1;
 }
 
@@ -1341,7 +1430,14 @@ const char *PBFTCommitMessageDescriptor::getFieldTypeString(void *object, int fi
             return basedesc->getFieldTypeString(object, field);
         field -= basedesc->getFieldCount(object);
     }
-    return NULL;
+    static const char *fieldTypeStrings[] = {
+        "int",
+        "int",
+        "string",
+        "TransportAddress",
+        "OverlayKey",
+    };
+    return (field>=0 && field<5) ? fieldTypeStrings[field] : NULL;
 }
 
 const char *PBFTCommitMessageDescriptor::getFieldProperty(void *object, int field, const char *propertyname) const
@@ -1381,6 +1477,11 @@ std::string PBFTCommitMessageDescriptor::getFieldAsString(void *object, int fiel
     }
     PBFTCommitMessage *pp = (PBFTCommitMessage *)object; (void)pp;
     switch (field) {
+        case 0: return long2string(pp->getView());
+        case 1: return long2string(pp->getSeqNumber());
+        case 2: return oppstring2string(pp->getDigest());
+        case 3: {std::stringstream out; out << pp->getCreatorAddress(); return out.str();}
+        case 4: {std::stringstream out; out << pp->getCreatorKey(); return out.str();}
         default: return "";
     }
 }
@@ -1395,6 +1496,9 @@ bool PBFTCommitMessageDescriptor::setFieldAsString(void *object, int field, int 
     }
     PBFTCommitMessage *pp = (PBFTCommitMessage *)object; (void)pp;
     switch (field) {
+        case 0: pp->setView(string2long(value)); return true;
+        case 1: pp->setSeqNumber(string2long(value)); return true;
+        case 2: pp->setDigest((value)); return true;
         default: return false;
     }
 }
@@ -1407,7 +1511,14 @@ const char *PBFTCommitMessageDescriptor::getFieldStructName(void *object, int fi
             return basedesc->getFieldStructName(object, field);
         field -= basedesc->getFieldCount(object);
     }
-    return NULL;
+    static const char *fieldStructNames[] = {
+        NULL,
+        NULL,
+        NULL,
+        "TransportAddress",
+        "OverlayKey",
+    };
+    return (field>=0 && field<5) ? fieldStructNames[field] : NULL;
 }
 
 void *PBFTCommitMessageDescriptor::getFieldStructPointer(void *object, int field, int i) const
@@ -1420,6 +1531,8 @@ void *PBFTCommitMessageDescriptor::getFieldStructPointer(void *object, int field
     }
     PBFTCommitMessage *pp = (PBFTCommitMessage *)object; (void)pp;
     switch (field) {
+        case 3: return (void *)(&pp->getCreatorAddress()); break;
+        case 4: return (void *)(&pp->getCreatorKey()); break;
         default: return NULL;
     }
 }
