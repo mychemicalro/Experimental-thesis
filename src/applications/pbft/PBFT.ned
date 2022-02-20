@@ -31,6 +31,7 @@ simple PBFT extends BaseApp
         @class(PBFT);
         int k = default(2); 					   // number of nodes to whom gossip a message
         double joinDelay @unit(s) = default(1s);   // seconds before the application tries to join the network 
+        int blockCapacity = default(1);			   // the number of operations a block can contain 
 }
 
 import oversim.common.ITier;

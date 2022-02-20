@@ -1,3 +1,6 @@
+#ifndef OPERATION_H_
+#define OPERATION_H_
+
 // #include <cstdint>
 #include <iostream>
 #include <sstream>
@@ -19,14 +22,14 @@ class Operation {
         Operation& getOp();
         OverlayKey getOriginatorKey(){return originator.first;}
         IPvXAddress getIp(){return originator.second;}
-        string getHash(){return hash;}
+        string getHash() const {return hash;}
 
 
         // And setters
         // TODO
 
         // Other methods
-        const char* computeHash();
+        // const char* computeHash();
 
         string cHash() const;
 
@@ -35,5 +38,6 @@ class Operation {
         simtime_t timestamp;
         pair<OverlayKey, IPvXAddress> originator;
         string hash;
-
 };
+
+#endif

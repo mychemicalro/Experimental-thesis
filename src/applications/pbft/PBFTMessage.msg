@@ -5,10 +5,12 @@ cplusplus {{
 #include <TransportAddress.h>
 #include <OverlayKey.h>
 #include <Operation.h>
+#include <Block.h>
 }}
 class noncobject TransportAddress;            // noncobject means it's not a message class.
 class noncobject OverlayKey;            	  // noncobject means it's not a message class.
 class noncobject Operation;            		  // noncobject means it's not a message class.
+class noncobject Block;            		  // noncobject means it's not a message class.
 
 // First, we declare an enum for the message type:
 // Enumerations in messages MUST have a value.
@@ -44,7 +46,8 @@ packet PBFTPreprepareMessage extends PBFTMessage {
 	type = PREPREPARE;
 	int view;
 	int seqNumber;
-	string digest;
+	string digest; // Block digest
+	Block block; // block containing the operations and also view and sequence number
 }
 
 packet PBFTPrepareMessage extends PBFTMessage {

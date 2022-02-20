@@ -3,7 +3,7 @@
 
 #include <omnetpp.h>
 #include "BaseApp.h"
-
+#include "Block.h"
 
 class Blockchain;
 class ReplicaState;
@@ -53,7 +53,6 @@ public:
     PBFT() {
         joinTimer = NULL;
         clientTimer = NULL;
-
         chainModule = NULL;
         replicaStateModule = NULL;
 
@@ -77,6 +76,11 @@ public:
     enum NodeTypes {
         REPLICA = 1,
         REPLICAANDCLIENT = 2,
+    };
+
+    enum OpResults{
+        OK = 1,
+        KO = 0,
     };
 
 
@@ -112,6 +116,10 @@ protected:
 
     // Algorithm attributes
     int sequenceNumber;
+
+    int blockCapacity;
+    Block* nextBlock;
+    map<string,Block> candidateBlocks;
 
     bool S_PREPREPARE;
     bool S_PREPARE;

@@ -52,15 +52,18 @@ void ReplicaState::addToRequestsLog(PBFTRequestMessage* msg){
 bool ReplicaState::digestInRequestsLog(const char* digest){
 
     for(size_t i=0; i<requests.size(); i++){
-        if (strcmp(requests.at(i).getOp().computeHash(), digest) == 0){
+        EV << "request hash: " << requests.at(i).getOp().getHash().c_str() << " digest hash: " << digest << endl;
+        if (strcmp(requests.at(i).getOp().getHash().c_str(), digest) == 0){
             EV << "Digest found - returning true" << endl;
             return true;
         }
     }
 
-    EV << "Digest not found - returning true" << endl;
+    EV << "Digest not found - returning false" << endl;
     return false;
 }
+
+
 
 
 void ReplicaState::addToPrepreparesLog(PBFTPreprepareMessage* msg){
@@ -150,7 +153,6 @@ bool ReplicaState::seenRequest(cMessage* msg){
                 EV << "Prepare found - returning true" << endl;
                 return true;
             }
-
         }
         EV << "Prepare not found - returning false" << endl;
 

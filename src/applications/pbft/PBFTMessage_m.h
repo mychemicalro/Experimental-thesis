@@ -17,6 +17,7 @@
 #include <TransportAddress.h>
 #include <OverlayKey.h>
 #include <Operation.h>
+#include <Block.h>
 // }}
 
 
@@ -151,7 +152,8 @@ inline void doUnpacking(cCommBuffer *b, PBFTRequestMessage& obj) {obj.parsimUnpa
  * 	type = PREPREPARE;
  * 	int view;
  * 	int seqNumber;
- * 	string digest;
+ * 	string digest; 
+ * 	Block block; 
  * }
  * </pre>
  */
@@ -161,6 +163,7 @@ class PBFTPreprepareMessage : public ::PBFTMessage
     int view_var;
     int seqNumber_var;
     opp_string digest_var;
+    Block block_var;
 
   private:
     void copy(const PBFTPreprepareMessage& other);
@@ -185,6 +188,9 @@ class PBFTPreprepareMessage : public ::PBFTMessage
     virtual void setSeqNumber(int seqNumber);
     virtual const char * getDigest() const;
     virtual void setDigest(const char * digest);
+    virtual Block& getBlock();
+    virtual const Block& getBlock() const {return const_cast<PBFTPreprepareMessage*>(this)->getBlock();}
+    virtual void setBlock(const Block& block);
 };
 
 inline void doPacking(cCommBuffer *b, PBFTPreprepareMessage& obj) {obj.parsimPack(b);}

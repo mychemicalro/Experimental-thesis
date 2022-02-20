@@ -34,9 +34,15 @@ public:
     // initialize parameters and data structure
     virtual void initializeChain();
 
+    /**
+     * Adds block to the blockchain
+     */
+    void addBlock(Block& b);
+
 protected:
 
 private:
+    vector<Block> blocks;
 
 };
 

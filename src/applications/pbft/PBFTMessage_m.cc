@@ -650,6 +650,7 @@ void PBFTPreprepareMessage::copy(const PBFTPreprepareMessage& other)
     this->view_var = other.view_var;
     this->seqNumber_var = other.seqNumber_var;
     this->digest_var = other.digest_var;
+    this->block_var = other.block_var;
 }
 
 void PBFTPreprepareMessage::parsimPack(cCommBuffer *b)
@@ -658,6 +659,7 @@ void PBFTPreprepareMessage::parsimPack(cCommBuffer *b)
     doPacking(b,this->view_var);
     doPacking(b,this->seqNumber_var);
     doPacking(b,this->digest_var);
+    doPacking(b,this->block_var);
 }
 
 void PBFTPreprepareMessage::parsimUnpack(cCommBuffer *b)
@@ -666,6 +668,7 @@ void PBFTPreprepareMessage::parsimUnpack(cCommBuffer *b)
     doUnpacking(b,this->view_var);
     doUnpacking(b,this->seqNumber_var);
     doUnpacking(b,this->digest_var);
+    doUnpacking(b,this->block_var);
 }
 
 int PBFTPreprepareMessage::getView() const
@@ -696,6 +699,16 @@ const char * PBFTPreprepareMessage::getDigest() const
 void PBFTPreprepareMessage::setDigest(const char * digest)
 {
     this->digest_var = digest;
+}
+
+Block& PBFTPreprepareMessage::getBlock()
+{
+    return block_var;
+}
+
+void PBFTPreprepareMessage::setBlock(const Block& block)
+{
+    this->block_var = block;
 }
 
 class PBFTPreprepareMessageDescriptor : public cClassDescriptor
@@ -745,7 +758,7 @@ const char *PBFTPreprepareMessageDescriptor::getProperty(const char *propertynam
 int PBFTPreprepareMessageDescriptor::getFieldCount(void *object) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
-    return basedesc ? 3+basedesc->getFieldCount(object) : 3;
+    return basedesc ? 4+basedesc->getFieldCount(object) : 4;
 }
 
 unsigned int PBFTPreprepareMessageDescriptor::getFieldTypeFlags(void *object, int field) const
@@ -760,8 +773,9 @@ unsigned int PBFTPreprepareMessageDescriptor::getFieldTypeFlags(void *object, in
         FD_ISEDITABLE,
         FD_ISEDITABLE,
         FD_ISEDITABLE,
+        FD_ISCOMPOUND,
     };
-    return (field>=0 && field<3) ? fieldTypeFlags[field] : 0;
+    return (field>=0 && field<4) ? fieldTypeFlags[field] : 0;
 }
 
 const char *PBFTPreprepareMessageDescriptor::getFieldName(void *object, int field) const
@@ -776,8 +790,9 @@ const char *PBFTPreprepareMessageDescriptor::getFieldName(void *object, int fiel
         "view",
         "seqNumber",
         "digest",
+        "block",
     };
-    return (field>=0 && field<3) ? fieldNames[field] : NULL;
+    return (field>=0 && field<4) ? fieldNames[field] : NULL;
 }
 
 int PBFTPreprepareMessageDescriptor::findField(void *object, const char *fieldName) const
@@ -787,6 +802,7 @@ int PBFTPreprepareMessageDescriptor::findField(void *object, const char *fieldNa
     if (fieldName[0]=='v' && strcmp(fieldName, "view")==0) return base+0;
     if (fieldName[0]=='s' && strcmp(fieldName, "seqNumber")==0) return base+1;
     if (fieldName[0]=='d' && strcmp(fieldName, "digest")==0) return base+2;
+    if (fieldName[0]=='b' && strcmp(fieldName, "block")==0) return base+3;
     return basedesc ? basedesc->findField(object, fieldName) : -1;
 }
 
@@ -802,8 +818,9 @@ const char *PBFTPreprepareMessageDescriptor::getFieldTypeString(void *object, in
         "int",
         "int",
         "string",
+        "Block",
     };
-    return (field>=0 && field<3) ? fieldTypeStrings[field] : NULL;
+    return (field>=0 && field<4) ? fieldTypeStrings[field] : NULL;
 }
 
 const char *PBFTPreprepareMessageDescriptor::getFieldProperty(void *object, int field, const char *propertyname) const
@@ -846,6 +863,7 @@ std::string PBFTPreprepareMessageDescriptor::getFieldAsString(void *object, int 
         case 0: return long2string(pp->getView());
         case 1: return long2string(pp->getSeqNumber());
         case 2: return oppstring2string(pp->getDigest());
+        case 3: {std::stringstream out; out << pp->getBlock(); return out.str();}
         default: return "";
     }
 }
@@ -879,8 +897,9 @@ const char *PBFTPreprepareMessageDescriptor::getFieldStructName(void *object, in
         NULL,
         NULL,
         NULL,
+        "Block",
     };
-    return (field>=0 && field<3) ? fieldStructNames[field] : NULL;
+    return (field>=0 && field<4) ? fieldStructNames[field] : NULL;
 }
 
 void *PBFTPreprepareMessageDescriptor::getFieldStructPointer(void *object, int field, int i) const
@@ -893,6 +912,7 @@ void *PBFTPreprepareMessageDescriptor::getFieldStructPointer(void *object, int f
     }
     PBFTPreprepareMessage *pp = (PBFTPreprepareMessage *)object; (void)pp;
     switch (field) {
+        case 3: return (void *)(&pp->getBlock()); break;
         default: return NULL;
     }
 }

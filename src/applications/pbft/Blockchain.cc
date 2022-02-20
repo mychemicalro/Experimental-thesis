@@ -36,3 +36,10 @@ void Blockchain::initializeChain() {
     EV << "Blockchain initialized" << endl;
 }
 
+void Blockchain::addBlock(Block& b){
+    blocks.push_back(b);
+    EV << "Initial block added, hash: " << b.getHash() << endl;
+    EV << "Blockchain length: " << blocks.size() << endl;
+
+}
+
