@@ -39,6 +39,17 @@ public:
      */
     void addBlock(Block& b);
 
+    /**
+     * Checks if block is present in the blockchain
+     */
+    bool isPresent(Block& b);
+
+    /**
+     * Get lash block hash
+     */
+    string getLastBlockHash();
+
+
 protected:
 
 private:

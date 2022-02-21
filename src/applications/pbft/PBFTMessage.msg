@@ -27,19 +27,18 @@ enum MessageType {
 
 packet PBFTMessage {
     int type enum (MessageType);         // message type
+  
+	TransportAddress creatorAddress;      // address of the node that created the message
+    OverlayKey creatorKey;				 // overlayKey of the node that created the message
 
-	// These are envelop data TODO understand if these data are necessary      
-    TransportAddress senderAddress;      // address of the node that sent the message
-    OverlayKey senderKey;				 // overlayKey of the node that sent the message
-    
 }
 
 packet PBFTRequestMessage extends PBFTMessage {
 	type = REQUEST;
 	Operation op;
-	TransportAddress clientAddress;
-	OverlayKey clientKey;
-	simtime_t timestamp; 
+	// TransportAddress clientAddress;
+	// OverlayKey clientKey;
+	// simtime_t timestamp; 
 }
 
 packet PBFTPreprepareMessage extends PBFTMessage {
@@ -55,8 +54,6 @@ packet PBFTPrepareMessage extends PBFTMessage {
 	int view;
 	int seqNumber;
 	string digest;
-	TransportAddress creatorAddress;      // address of the node that created the PREPARE message
-    OverlayKey creatorKey;				 // overlayKey of the node that created the PREPARE message
 }
 
 packet PBFTCommitMessage extends PBFTMessage {
@@ -64,8 +61,6 @@ packet PBFTCommitMessage extends PBFTMessage {
 	int view;
 	int seqNumber;
 	string digest;
-	TransportAddress creatorAddress;      // address of the node that created the PREPARE message
-    OverlayKey creatorKey;				 // overlayKey of the node that created the PREPARE message
 }
 
 packet PBFTReplyMessage extends PBFTMessage {
@@ -73,6 +68,7 @@ packet PBFTReplyMessage extends PBFTMessage {
 	int view;
 	OverlayKey replicaNumber; 							// replica number
 	int operationResult; 								// the result of the operation TODO
+	Operation op;
 }
 
 

@@ -38,11 +38,13 @@ class Block {
         // Getters
         int getCapacity(){return capacity;}
         string getHash(){return hash;}
+        int getSeqNumber(){return seqNumber;}
 
         //Setters
         void addOperation(Operation& op);
         void setSeqNumber(int sn){seqNumber = sn;}
         void setViewNumber(int vn){viewNumber = vn;}
+        void setPrevBlockHash(string h){prevBlockHash = h;}
 
         // Others
         bool isFull();
@@ -58,7 +60,6 @@ class Block {
 
         // The block must contain a list of capacity operations
         vector<Operation> operations;
-
 
 };
 

@@ -69,6 +69,8 @@ public:
 
     void addToCommitsLog(PBFTCommitMessage* msg);
 
+    void addToRepliesLog(PBFTReplyMessage* msg);
+
     /**
      * Returns true if the request is already present in requests
      */
@@ -84,6 +86,15 @@ public:
 
     bool searchCommittedCertificate(PBFTCommitMessage* m);
 
+    bool searchReplyCertificate(PBFTReplyMessage* m);
+
+    /**
+     * Check if the replica hash accepted another prepare with same seqNum and view but with different digest
+     */
+    bool otherPreprepareAccepted(PBFTPreprepareMessage* msg);
+
+
+
 protected:
 
 private:
@@ -96,6 +107,7 @@ private:
     std::vector<PBFTPreprepareMessage> preprepares;
     std::vector<PBFTPrepareMessage> prepares;
     std::vector<PBFTCommitMessage> commits;
+    std::vector<PBFTReplyMessage> replies;
 
     std::map<const char*, std::vector<PBFTPrepareMessage> > prepares_map;
 

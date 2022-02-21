@@ -43,3 +43,22 @@ void Blockchain::addBlock(Block& b){
 
 }
 
+bool Blockchain::isPresent(Block& b){
+
+    for (size_t i=0; i<blocks.size(); i++){
+        if(blocks.at(i).getHash() == b.getHash()){
+            return true;
+        }
+    }
+
+    return false;
+}
+
+string Blockchain::getLastBlockHash(){
+    return blocks.at(blocks.size()-1).getHash();
+}
+
+
+
+
+

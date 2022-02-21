@@ -28,6 +28,8 @@ string Block::computeHash() {
         ss << operations.at(i).cHash();
     }
 
+    ss << prevBlockHash;
+
     hash = sha256(ss.str());
 
     EV << "BLOCK HASH:" << hash << endl;
@@ -65,5 +67,6 @@ Block::Block( const Block& block ){
     capacity = block.capacity;
     seqNumber = block.seqNumber;
     hash = block.hash;
+    prevBlockHash = block.prevBlockHash;
     operations = block.operations;
 }

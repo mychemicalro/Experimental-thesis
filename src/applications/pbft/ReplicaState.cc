@@ -43,10 +43,9 @@ void ReplicaState::initializeState() {
 }
 
 void ReplicaState::addToRequestsLog(PBFTRequestMessage* msg){
-    if (seenRequest(msg)) return;
+    // if (seenRequest(msg)) return; // useless check ...
     requests.push_back(*msg);
     EV << "Added a PBFTRequestMessage" << endl;
-
 }
 
 bool ReplicaState::digestInRequestsLog(const char* digest){
@@ -64,8 +63,6 @@ bool ReplicaState::digestInRequestsLog(const char* digest){
 }
 
 
-
-
 void ReplicaState::addToPrepreparesLog(PBFTPreprepareMessage* msg){
     if (seenRequest(msg)) return;
     preprepares.push_back(*msg);
@@ -80,21 +77,6 @@ void ReplicaState::addToPreparesLog(PBFTPrepareMessage* msg){
     EV << "Added a PBFTPrepareMessage to plain vector" << endl;
     EV << "prepares size:" << prepares.size() << endl;
 
-    /*
-    std::map<const char*, std::vector<PBFTPrepareMessage> >::iterator it = prepares_map.find(msg->getDigest());
-
-    if (it != prepares_map.end()){
-        EV << "Found PREPARE message with digest: " << msg->getDigest() << endl;
-
-        EV << "Inserting" << endl;
-        it->second.push_back(*msg);
-        EV << "Size: "<< it->second.size() << endl;
-
-    } else {
-        EV << "Seeing for the first time PREPARE message with digest: " << msg->getDigest() << endl;
-        prepares_map.insert(pair<const char*, vector<PBFTPrepareMessage> >(msg->getDigest(), vector<PBFTPrepareMessage>()));
-    }
-    */
 }
 
 void ReplicaState::addToCommitsLog(PBFTCommitMessage* msg){
@@ -103,6 +85,13 @@ void ReplicaState::addToCommitsLog(PBFTCommitMessage* msg){
     EV << "Added a PBFTCommitMessage to plain vector" << endl;
     EV << "commits size:" << commits.size() << endl;
 
+}
+
+void ReplicaState::addToRepliesLog(PBFTReplyMessage* msg){
+    if (seenRequest(msg)) return;
+    replies.push_back(*msg);
+    EV << "Added a PBFTReplyMessage to plain vector" << endl;
+    EV << "replies size:" << replies.size() << endl;
 }
 
 bool ReplicaState::seenRequest(cMessage* msg){
@@ -159,23 +148,48 @@ bool ReplicaState::seenRequest(cMessage* msg){
     } else if (dynamic_cast<PBFTCommitMessage*>(msg)){
         PBFTCommitMessage *myMsg = dynamic_cast<PBFTCommitMessage*>(msg);
 
-        /**
-         * Same as prepares
-         *
-         */
         for(size_t i=0; i<commits.size(); i++){
             // TODO make some check
             EV << "Trying to check if I already received this Commit message" << endl;
             EV << commits.at(i).getCreatorKey() << " " << myMsg->getCreatorKey() << endl;
             if (strcmp(commits.at(i).getDigest(), myMsg->getDigest()) == 0 && commits.at(i).getCreatorKey() == myMsg->getCreatorKey()){
-                EV << "Commit found - returning true" << endl;
-                return true;
+                if (commits.at(i).getSeqNumber() == myMsg->getSeqNumber() && commits.at(i).getView() == myMsg->getView()){
+                    EV << "Commit found - returning true" << endl;
+                    return true;
+                }
             }
-
         }
-        EV << "Commit not found - returning false" << endl;
-    }
 
+        EV << "Commit not found - returning false" << endl;
+
+    } else if (dynamic_cast<PBFTReplyMessage*>(msg)){
+        PBFTReplyMessage *myMsg = dynamic_cast<PBFTReplyMessage*>(msg);
+
+        /**
+         * A reply has been already seen when it has:
+         *      - same replicaNumber
+         *      - same operationResult
+         *      - same view
+         *      - same operation
+         */
+        for(size_t i=0; i<replies.size(); i++){
+            // TODO make some check
+            EV << "Trying to check if I already received this Reply message" << endl;
+            EV << replies.at(i).getCreatorKey() << " " << myMsg->getCreatorKey() << endl;
+
+            if(replies.at(i).getOp().getHash() == myMsg->getOp().getHash()){
+                if(replies.at(i).getView() == myMsg->getView()){
+                    if(replies.at(i).getOperationResult() == myMsg->getOperationResult()){
+                        if(replies.at(i).getReplicaNumber() == myMsg->getReplicaNumber()){
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        EV << "Reply not found - returning false" << endl;
+    }
 
     return false;
 }
@@ -234,4 +248,42 @@ bool ReplicaState::searchCommittedCertificate(PBFTCommitMessage* m){
 
     return false;
 }
+
+
+bool ReplicaState::otherPreprepareAccepted(PBFTPreprepareMessage* msg){
+
+    for(size_t i=0; i<preprepares.size(); i++){
+        if (prepares.at(i).getSeqNumber() == msg->getSeqNumber() && prepares.at(i).getView() == msg->getView()){
+            if(strcmp(preprepares.at(i).getDigest(), msg->getDigest()) != 0){
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool ReplicaState::searchReplyCertificate(PBFTReplyMessage* msg){
+    int replies_c = 0;
+    int f = 1;
+
+    for(size_t i=0; i<replies.size(); i++){
+
+        if(replies.at(i).getOp().getHash() == msg->getOp().getHash()){
+            EV << "replies_c incremented" << endl;
+            replies_c ++;
+        }
+    }
+
+    if (replies_c == f +1){ // TODO exact match on replies_c, maybe ge than f?
+        EV << "Found Reply Certificate! " << endl;
+        return true;
+    }
+
+    return false;
+}
+
+
+
+
 

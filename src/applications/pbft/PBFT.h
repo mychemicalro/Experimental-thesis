@@ -13,6 +13,7 @@ class PBFT : public BaseApp {
     // module parameters
     int k;
     double joinDelay;
+    double requestDelay;
 
     // statistics
     int numSent;              //number of packets sent

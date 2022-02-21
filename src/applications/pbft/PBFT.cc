@@ -49,6 +49,7 @@ void PBFT::initializeApp(int stage){
     WATCH(numReceived);
     WATCH(k);
     WATCH(joinDelay);
+    WATCH(requestDelay);
     WATCH(sequenceNumber);
 
     joinTimer = new cMessage("Application joinTimer");
@@ -110,10 +111,12 @@ void PBFT::changeState(States toState){
 
                 // Set timer for sending messages
                 clientTimer = new cMessage("Client timer");
+                requestDelay = par("requestDelay");
 
                 // TODO add some delay parameter
                 scheduleAt(simTime() + uniform(1,3), clientTimer);
             }
+
             // TODO solve cancelAndDelete(joinTimer) issue in the destructor of PBFT
 
             // Check if this is the primary, and set the state accordingly.
@@ -121,12 +124,21 @@ void PBFT::changeState(States toState){
                 nextBlock = new Block(blockCapacity);
             }
 
-            // TODO For now add in all the replicas the initial blockchain block
+            // For now add in all the replicas the initial blockchain block, the same for all!
+            /**
+             * Initial block:
+             *      - sequence number = 1
+             *      - view = 0
+             *      - key = 42
+             *      - ip = 1.1.1.1
+             *      - timestamp = 0
+             */
             Block* initialBlock = new Block(blockCapacity);
             sequenceNumber ++;
             initialBlock->setSeqNumber(sequenceNumber);
             initialBlock->setViewNumber(replicaStateModule->getCurrentView());
             initialBlock->computeHash().c_str();
+            initialBlock->setPrevBlockHash("Big Bang");
 
             Operation op = Operation(OverlayKey(42), IPvXAddress("1.1.1.1"), 0);
             initialBlock->addOperation(op);
@@ -181,16 +193,17 @@ void PBFT::handleTimerEvent(cMessage* msg) {
         // Create a new operation and broadcast it
 
         Operation op = Operation(this->overlay->getThisNode().getKey(), thisNode.getIp(), simTime());
-        EV << "Operation hash: " << op.getHash() << endl;
+        EV << "Client request hash: " << op.getHash() << endl;
         PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTRequestMessage");
         msg->setOp(op);
-        msg->setTimestamp(simTime()); // TODO not always needed
-        msg->setClientKey(this->overlay->getThisNode().getKey());
-        msg->setClientAddress(thisNode); // This includes also the port, like 10.0.0.1:2048
+
+        // TODO Start a timer because the client has to receive a weak certificate before the timer triggers.
+        // Otherwise, the client retransmits the request.
 
         broadcast(msg);
+        delete msg;
 
-        scheduleAt(simTime() + 10, clientTimer);
+        scheduleAt(simTime() + requestDelay, clientTimer);
 
     } else {
         delete msg; // unknown packet
@@ -237,37 +250,30 @@ void PBFT::handleUDPMessage(cMessage* msg) {
     switch(myMsg->getType()){
         case REQUEST: {
             // Cast again the message to the needed format
-            PBFTRequestMessage *req = dynamic_cast<PBFTRequestMessage*>(myMsg);
-            EV << "Received message at: " << thisNode.getIp() << " with digest: " << req->getOp().getHash() << endl;
+            PBFTRequestMessage* req = dynamic_cast<PBFTRequestMessage*>(myMsg);
+            EV << "Received PBFTRequest at: " << thisNode.getIp() << " with digest: " << req->getOp().getHash() << endl;
 
             // Check if already seen
             if (replicaStateModule->seenRequest(msg)){
                 EV << "Request already seen - Request not processed -- returning " << endl;
+
+                // TODO Check if the request has already been processed. If yes, it should retransmit the reply.
+                // Replicas must remember the last reply message they sent to each client.
+
+                delete req;
                 return;
             }
 
             // Insert into log, save things like digest, sender, etc
             replicaStateModule->addToRequestsLog(req);
 
+            EV << "Originator key: " << req->getOp().getOriginatorKey() << endl;
+
             // Gossip the request
             broadcast(req);
 
             // If I am the primary and if authentication is OK, assign sequence number and multicast PREPREPARE message
             if (replicaStateModule->getPrimary()) {
-                /*
-                EV << "PRIMARY: I am processing a request and trying to send Preprepare messages in broadcast" << endl;
-                sequenceNumber ++;
-                PBFTPreprepareMessage* preprepare_msg = new PBFTPreprepareMessage("PBFTPreprepareMessage");
-                preprepare_msg->setView(replicaStateModule->getCurrentView());
-                preprepare_msg->setSeqNumber(sequenceNumber);
-
-                preprepare_msg->setDigest(req->getOp().getHash().c_str());
-
-                broadcast(preprepare_msg);
-
-                // I could also add here the PREPREPARE message to my log -> this might be an error
-                // replicaStateModule->addToPrepreparesLog(preprepare_msg);
-*/
 
                 // Blocks part
                 nextBlock->addOperation(req->getOp());
@@ -277,6 +283,7 @@ void PBFT::handleUDPMessage(cMessage* msg) {
                     sequenceNumber ++;
                     nextBlock->setSeqNumber(sequenceNumber);
                     nextBlock->setViewNumber(replicaStateModule->getCurrentView());
+                    nextBlock->setPrevBlockHash(chainModule->getLastBlockHash());
 
                     EV << "PRIMARY: Full block -> send PREPREPARE" << endl;
 
@@ -287,13 +294,20 @@ void PBFT::handleUDPMessage(cMessage* msg) {
                     preprepare_msg->setBlock(*nextBlock);
 
                     broadcast(preprepare_msg);
+                    delete preprepare_msg;
 
+                    /*
                     vector<Operation> const & ops = nextBlock->getOperations();
                     for(size_t i=0; i<ops.size(); i++){
                         EV <<" chash " << ops.at(i).cHash() << endl;
                         EV << "gethash " << ops.at(i).getHash() << endl;
                     }
+                    */
+
+                    // clear nextBlock
+                    nextBlock = new Block(blockCapacity);
                 }
+
             }
 
             break;
@@ -301,12 +315,6 @@ void PBFT::handleUDPMessage(cMessage* msg) {
 
         case PREPREPARE: {
             PBFTPreprepareMessage *req = dynamic_cast<PBFTPreprepareMessage*>(myMsg);
-            /**
-             * Once accepted:
-             *      - enters the prepare phase
-             *      - adds m in its log !? TODO -> also the original message comes with the PREPREPARE message
-             *      - multicasts a PREPARE message
-             */
 
             /**
              * I have to reason with blocks now.
@@ -316,11 +324,17 @@ void PBFT::handleUDPMessage(cMessage* msg) {
              *      - n between h and H
              *      - the replica has not accepted a PRE-PREPARE block with
              *          same view and seqNumber, but with different digest.
+             *
+             * Once accepted:
+             *      - enters the prepare phase
+             *      - adds m in its log !? TODO -> also the original message comes with the PREPREPARE message
+             *      - multicasts a PREPARE message
              */
 
             // Check if already processed this message?
             if (replicaStateModule->seenRequest(req)){
                 EV << "Preprepare already seen - Preprepare not processed -- returning " << endl;
+                delete req;
                 return;
             }
 
@@ -340,9 +354,10 @@ void PBFT::handleUDPMessage(cMessage* msg) {
                 EV << "Wrong seqNumber! - Preprepare not processed -- returning " << endl;
                 return;
             }
-            // If I'have already accepted a PREPREPARE message for the same v and seqNum ... TODO
-            if (S_PREPARE){
-                EV << "Already in PREPARE phase! - Preprepare not processed -- returning " << endl;
+
+            // If I'have already accepted a PREPREPARE message for the same v and seqNum but with different digest
+            if (replicaStateModule->otherPreprepareAccepted(req)){
+                EV << "Already accepted PREPREPARE message for seqNum: " << req->getSeqNumber() << " and view: " << req->getView() << endl;
                 return;
             }
 
@@ -350,12 +365,10 @@ void PBFT::handleUDPMessage(cMessage* msg) {
             EV << "Replica accepted a PREPREPARE block! " << endl;
             replicaStateModule->addToPrepreparesLog(req);
 
-            // TODO save somewhere the PREPREPARE message associated when entered the PREPARE phase
-
 
             // If the replica does not have the message in the log what happens? TODO
-            // Need to check if I have in my log all the operations contained in the block.
 
+            // Need to check if I have in my log all the operations contained in the block.
             bool canPrepare = true;
 
             vector<Operation> const & ops = req->getBlock().getOperations();
@@ -369,10 +382,6 @@ void PBFT::handleUDPMessage(cMessage* msg) {
             }
 
             if (canPrepare){
-                // S_PREPARE = true;
-
-                // Add the message to the seen ones
-                replicaStateModule->addToPrepreparesLog(req);
 
                 // multicast a PREPARE message
                 EV << "Replica has to multicast a prepare message " << endl;
@@ -385,12 +394,12 @@ void PBFT::handleUDPMessage(cMessage* msg) {
                 prepare_msg->setCreatorKey(overlay->getThisNode().getKey());
 
                 broadcast(prepare_msg);
+                delete prepare_msg;
 
                 // Add the block to the candidateBlocks
-                // candidateBlocks.push_back(req->getBlock());
+
                 candidateBlocks.insert(make_pair(req->getBlock().getHash(), req->getBlock()));
                 EV << "CandidateBlocks size: " << candidateBlocks.size() << endl;
-
             }
 
             break;
@@ -399,9 +408,9 @@ void PBFT::handleUDPMessage(cMessage* msg) {
         case PREPARE: {
             PBFTPrepareMessage *req = dynamic_cast<PBFTPrepareMessage*>(myMsg);
 
-
             if (replicaStateModule->seenRequest(req)){
                 EV << "Prepare already seen - Prepare not processed -- returning " << endl;
+                delete req;
                 return;
             }
 
@@ -423,6 +432,7 @@ void PBFT::handleUDPMessage(cMessage* msg) {
                 commit_msg->setCreatorKey(overlay->getThisNode().getKey());
 
                 broadcast(commit_msg);
+                delete commit_msg;
             }
 
             break;
@@ -433,6 +443,7 @@ void PBFT::handleUDPMessage(cMessage* msg) {
 
             if (replicaStateModule->seenRequest(req)){
                 EV << "Commit already seen - Commit not processed -- returning " << endl;
+                delete req;
                 return;
             }
 
@@ -443,27 +454,57 @@ void PBFT::handleUDPMessage(cMessage* msg) {
             broadcast(req);
 
             if(replicaStateModule->searchCommittedCertificate(req)){
-                // Ready to commit
+
                 // I need to know the block I have to add to the blockchain.
                 EV << "Ready to commit" << endl;
                 map<string, Block>::iterator it = candidateBlocks.find(req->getDigest());
                 if (it != candidateBlocks.end()){
-                    EV << "Print somewhat found" << endl;
+                    EV << "Candidate block found" << endl;
 
-                    // add the block if all the blocks with a lower seqNumber were added.
-                    chainModule->addBlock(it->second);
 
-                    // Send reply to client, How? as always, trying to broadcast the result ... or through an RPC call?
-                    PBFTReplyMessage* reply_msg = new PBFTReplyMessage("PBFTReplyMessage");
-                    reply_msg->setView(req->getView());
+                    bool canExecute = true;
+                    // TODO add the block if all the blocks with a lower seqNumber were added. How? Are we sure about this?
+                    map<string, Block>::iterator cb;
+                    for(cb=candidateBlocks.begin(); cb!=candidateBlocks.end(); cb++){
+                        if (cb->second.getSeqNumber() < it->second.getSeqNumber()){
+                            if(!chainModule->isPresent(cb->second)){
+                                EV << "Have to wait before executing this block ..." << endl;
+                                canExecute = false;
+                            }
+                        }
+                    }
 
-                    // Add the request timestamp .. Find it -> TODO
-                    // Add the client key .. Find it -> TODO
+                    if(canExecute){
+                        // Ready to commit/execute
+                        chainModule->addBlock(it->second);
 
-                    reply_msg->setReplicaNumber(this->overlay->getThisNode().getKey());
-                    reply_msg->setOperationResult(OK);
+                        /**
+                         * Attention please.
+                         * Since I have a block I have to reply to all the clients contained in the
+                         * block's operations.
+                         * For each operation in the block, get the operation and send the REPLY
+                         *
+                         */
 
-                    broadcast(reply_msg);
+                        vector<Operation> const & ops = it->second.getOperations();
+                        for(size_t i=0; i<ops.size(); i++){
+
+                            // Send reply to client, How? as always, trying to broadcast the result ... or through an RPC call?
+                            PBFTReplyMessage* reply_msg = new PBFTReplyMessage("PBFTReplyMessage");
+                            reply_msg->setView(req->getView());
+
+                            reply_msg->setOp(ops.at(i));
+                            reply_msg->setReplicaNumber(this->overlay->getThisNode().getKey());
+                            reply_msg->setOperationResult(OK);
+
+                            reply_msg->setCreatorAddress(thisNode);
+                            reply_msg->setCreatorKey(overlay->getThisNode().getKey());
+
+                            broadcast(reply_msg);
+                            delete reply_msg;
+                        }
+
+                    }
                 }
             }
 
@@ -472,7 +513,33 @@ void PBFT::handleUDPMessage(cMessage* msg) {
 
         case REPLY: {
             PBFTReplyMessage *rep = dynamic_cast<PBFTReplyMessage*>(myMsg);
-            EV << "Received a reply message from: " << rep->getReplicaNumber() << endl;
+
+            /**
+             * Check if I have already seen the message -> stop
+             * Add the message to the log and broadcast it.
+             * If I am the client, check for the weak certificate (reply certificate).
+             * If found, accept the reply.
+             */
+
+            if(replicaStateModule->seenRequest(rep)){
+                EV << "Reply already seen - Reply not processed -- returning " << endl;
+                delete rep;
+                return;
+            }
+
+            replicaStateModule->addToRepliesLog(rep);
+
+            broadcast(rep);
+
+            if(rep->getOp().getOriginatorKey() == this->overlay->getThisNode().getKey()){
+                EV << "Result got back to the client" << endl;
+                EV << "Received a reply message from: " << rep->getReplicaNumber() << endl;
+
+                // The client waits for a weak certificate of f+1 replies. This will be called reply certificate.
+                if(replicaStateModule->searchReplyCertificate(rep)){
+                    EV << "Found reply certificate --> Accepted result: " << rep->getOperationResult() << endl;
+                }
+            }
 
             break;
         }
@@ -519,6 +586,7 @@ void PBFT::broadcast(cMessage* msg){
 
         numSent ++;
     }
+
 }
 
 void PBFT::handleLowerMessage(cMessage* msg){

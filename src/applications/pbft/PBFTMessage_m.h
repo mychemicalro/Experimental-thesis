@@ -47,11 +47,10 @@ enum MessageType {
  * <pre>
  * packet PBFTMessage {
  *     int type enum (MessageType);         
+ *   
+ * 	TransportAddress creatorAddress;      
+ *     OverlayKey creatorKey;				 
  * 
- * 	
- *     TransportAddress senderAddress;      
- *     OverlayKey senderKey;				 
- *     
  * }
  * </pre>
  */
@@ -59,8 +58,8 @@ class PBFTMessage : public ::cPacket
 {
   protected:
     int type_var;
-    TransportAddress senderAddress_var;
-    OverlayKey senderKey_var;
+    TransportAddress creatorAddress_var;
+    OverlayKey creatorKey_var;
 
   private:
     void copy(const PBFTMessage& other);
@@ -81,12 +80,12 @@ class PBFTMessage : public ::cPacket
     // field getter/setter methods
     virtual int getType() const;
     virtual void setType(int type);
-    virtual TransportAddress& getSenderAddress();
-    virtual const TransportAddress& getSenderAddress() const {return const_cast<PBFTMessage*>(this)->getSenderAddress();}
-    virtual void setSenderAddress(const TransportAddress& senderAddress);
-    virtual OverlayKey& getSenderKey();
-    virtual const OverlayKey& getSenderKey() const {return const_cast<PBFTMessage*>(this)->getSenderKey();}
-    virtual void setSenderKey(const OverlayKey& senderKey);
+    virtual TransportAddress& getCreatorAddress();
+    virtual const TransportAddress& getCreatorAddress() const {return const_cast<PBFTMessage*>(this)->getCreatorAddress();}
+    virtual void setCreatorAddress(const TransportAddress& creatorAddress);
+    virtual OverlayKey& getCreatorKey();
+    virtual const OverlayKey& getCreatorKey() const {return const_cast<PBFTMessage*>(this)->getCreatorKey();}
+    virtual void setCreatorKey(const OverlayKey& creatorKey);
 };
 
 inline void doPacking(cCommBuffer *b, PBFTMessage& obj) {obj.parsimPack(b);}
@@ -98,9 +97,9 @@ inline void doUnpacking(cCommBuffer *b, PBFTMessage& obj) {obj.parsimUnpack(b);}
  * packet PBFTRequestMessage extends PBFTMessage {
  * 	type = REQUEST;
  * 	Operation op;
- * 	TransportAddress clientAddress;
- * 	OverlayKey clientKey;
- * 	simtime_t timestamp; 
+ * 	
+ * 	
+ * 	
  * }
  * </pre>
  */
@@ -108,9 +107,6 @@ class PBFTRequestMessage : public ::PBFTMessage
 {
   protected:
     Operation op_var;
-    TransportAddress clientAddress_var;
-    OverlayKey clientKey_var;
-    simtime_t timestamp_var;
 
   private:
     void copy(const PBFTRequestMessage& other);
@@ -132,14 +128,6 @@ class PBFTRequestMessage : public ::PBFTMessage
     virtual Operation& getOp();
     virtual const Operation& getOp() const {return const_cast<PBFTRequestMessage*>(this)->getOp();}
     virtual void setOp(const Operation& op);
-    virtual TransportAddress& getClientAddress();
-    virtual const TransportAddress& getClientAddress() const {return const_cast<PBFTRequestMessage*>(this)->getClientAddress();}
-    virtual void setClientAddress(const TransportAddress& clientAddress);
-    virtual OverlayKey& getClientKey();
-    virtual const OverlayKey& getClientKey() const {return const_cast<PBFTRequestMessage*>(this)->getClientKey();}
-    virtual void setClientKey(const OverlayKey& clientKey);
-    virtual simtime_t getTimestamp() const;
-    virtual void setTimestamp(simtime_t timestamp);
 };
 
 inline void doPacking(cCommBuffer *b, PBFTRequestMessage& obj) {obj.parsimPack(b);}
@@ -204,8 +192,6 @@ inline void doUnpacking(cCommBuffer *b, PBFTPreprepareMessage& obj) {obj.parsimU
  * 	int view;
  * 	int seqNumber;
  * 	string digest;
- * 	TransportAddress creatorAddress;      
- *     OverlayKey creatorKey;				 
  * }
  * </pre>
  */
@@ -215,8 +201,6 @@ class PBFTPrepareMessage : public ::PBFTMessage
     int view_var;
     int seqNumber_var;
     opp_string digest_var;
-    TransportAddress creatorAddress_var;
-    OverlayKey creatorKey_var;
 
   private:
     void copy(const PBFTPrepareMessage& other);
@@ -241,12 +225,6 @@ class PBFTPrepareMessage : public ::PBFTMessage
     virtual void setSeqNumber(int seqNumber);
     virtual const char * getDigest() const;
     virtual void setDigest(const char * digest);
-    virtual TransportAddress& getCreatorAddress();
-    virtual const TransportAddress& getCreatorAddress() const {return const_cast<PBFTPrepareMessage*>(this)->getCreatorAddress();}
-    virtual void setCreatorAddress(const TransportAddress& creatorAddress);
-    virtual OverlayKey& getCreatorKey();
-    virtual const OverlayKey& getCreatorKey() const {return const_cast<PBFTPrepareMessage*>(this)->getCreatorKey();}
-    virtual void setCreatorKey(const OverlayKey& creatorKey);
 };
 
 inline void doPacking(cCommBuffer *b, PBFTPrepareMessage& obj) {obj.parsimPack(b);}
@@ -260,8 +238,6 @@ inline void doUnpacking(cCommBuffer *b, PBFTPrepareMessage& obj) {obj.parsimUnpa
  * 	int view;
  * 	int seqNumber;
  * 	string digest;
- * 	TransportAddress creatorAddress;      
- *     OverlayKey creatorKey;				 
  * }
  * </pre>
  */
@@ -271,8 +247,6 @@ class PBFTCommitMessage : public ::PBFTMessage
     int view_var;
     int seqNumber_var;
     opp_string digest_var;
-    TransportAddress creatorAddress_var;
-    OverlayKey creatorKey_var;
 
   private:
     void copy(const PBFTCommitMessage& other);
@@ -297,12 +271,6 @@ class PBFTCommitMessage : public ::PBFTMessage
     virtual void setSeqNumber(int seqNumber);
     virtual const char * getDigest() const;
     virtual void setDigest(const char * digest);
-    virtual TransportAddress& getCreatorAddress();
-    virtual const TransportAddress& getCreatorAddress() const {return const_cast<PBFTCommitMessage*>(this)->getCreatorAddress();}
-    virtual void setCreatorAddress(const TransportAddress& creatorAddress);
-    virtual OverlayKey& getCreatorKey();
-    virtual const OverlayKey& getCreatorKey() const {return const_cast<PBFTCommitMessage*>(this)->getCreatorKey();}
-    virtual void setCreatorKey(const OverlayKey& creatorKey);
 };
 
 inline void doPacking(cCommBuffer *b, PBFTCommitMessage& obj) {obj.parsimPack(b);}
@@ -316,6 +284,7 @@ inline void doUnpacking(cCommBuffer *b, PBFTCommitMessage& obj) {obj.parsimUnpac
  * 	int view;
  * 	OverlayKey replicaNumber; 							
  * 	int operationResult; 								
+ * 	Operation op;
  * }
  * </pre>
  */
@@ -325,6 +294,7 @@ class PBFTReplyMessage : public ::PBFTMessage
     int view_var;
     OverlayKey replicaNumber_var;
     int operationResult_var;
+    Operation op_var;
 
   private:
     void copy(const PBFTReplyMessage& other);
@@ -350,6 +320,9 @@ class PBFTReplyMessage : public ::PBFTMessage
     virtual void setReplicaNumber(const OverlayKey& replicaNumber);
     virtual int getOperationResult() const;
     virtual void setOperationResult(int operationResult);
+    virtual Operation& getOp();
+    virtual const Operation& getOp() const {return const_cast<PBFTReplyMessage*>(this)->getOp();}
+    virtual void setOp(const Operation& op);
 };
 
 inline void doPacking(cCommBuffer *b, PBFTReplyMessage& obj) {obj.parsimPack(b);}
