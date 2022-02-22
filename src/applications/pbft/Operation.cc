@@ -18,7 +18,17 @@ Operation::Operation(OverlayKey ok, IPvXAddress ip, simtime_t ts){
     timestamp = ts;
     originator = make_pair(ok, ip);
     hash = cHash();
+
     EV << "op: " << op << " hash: " << hash << endl;
+    int i = 2;
+    EV << "Hash size::: " << hash.size() << endl;
+    EV << "Hash sizeof::: " << sizeof(hash) << endl;
+    EV << "Operation sizeof this::: " << sizeof(this) << endl;
+    EV << "IP size::: " << sizeof(ip) << endl;
+    EV << "overlay size::: " << sizeof(ok) << endl;
+    EV << "ts size::: " << sizeof(ts) << endl;
+    EV << "int size::: " << sizeof(i) << endl;
+
 }
 
 //copy constructor

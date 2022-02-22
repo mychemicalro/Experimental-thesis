@@ -18,6 +18,27 @@
 #include <OverlayKey.h>
 #include <Operation.h>
 #include <Block.h>
+
+
+
+static const int MESSAGETYPE_L = 3;
+static const int OPERATION_L = 208; 
+static const int VIEW_L = 8;
+static const int SEQNUMBER_L = 8;
+static const int DIGEST_L = 64; 
+static const int OPRESULT_L = 1;
+static const int REPLICANUMBER_L = 32;
+static const int CREATORADDRESS_L = 32; 
+static const int CREATORKEY_L = 32;
+static const int BLOCK_L = 88; 
+
+
+#define PBFTMESSAGE_L(msg) (BASECALL_L(msg) + MESSAGETYPE_L)
+#define PBFTREQUEST(msg) (PBFTMESSAGE_L(msg) + OPERATION_L)
+#define PBFTPREPREPARE(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L + OPERATION_L * msg->getBlock().getBlockOpsNumber())
+#define PBFTPREPARE(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L  + CREATORADDRESS_L + CREATORKEY_L)
+#define PBFTCOMMIT(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L + CREATORADDRESS_L + CREATORKEY_L)
+#define PBFTREPLY(msg) (PBFTMESSAGE_L(msg) + VIEW_L + OPRESULT_L + OPERATION_L + REPLICANUMBER_L + CREATORADDRESS_L + CREATORKEY_L)
 // }}
 
 

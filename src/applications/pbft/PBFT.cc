@@ -196,6 +196,7 @@ void PBFT::handleTimerEvent(cMessage* msg) {
         EV << "Client request hash: " << op.getHash() << endl;
         PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTRequestMessage");
         msg->setOp(op);
+        msg->setBitLength(PBFTREQUEST(msg));
 
         // TODO Start a timer because the client has to receive a weak certificate before the timer triggers.
         // Otherwise, the client retransmits the request.
@@ -293,6 +294,7 @@ void PBFT::handleUDPMessage(cMessage* msg) {
                     preprepare_msg->setDigest(nextBlock->computeHash().c_str());
                     preprepare_msg->setBlock(*nextBlock);
 
+                    preprepare_msg->setBitLength(PBFTPREPREPARE(preprepare_msg));
                     broadcast(preprepare_msg);
                     delete preprepare_msg;
 
@@ -392,6 +394,7 @@ void PBFT::handleUDPMessage(cMessage* msg) {
                 prepare_msg->setDigest(req->getDigest());
                 prepare_msg->setCreatorAddress(thisNode);
                 prepare_msg->setCreatorKey(overlay->getThisNode().getKey());
+                prepare_msg->setBitLength(PBFTPREPARE(prepare_msg));
 
                 broadcast(prepare_msg);
                 delete prepare_msg;
@@ -430,6 +433,7 @@ void PBFT::handleUDPMessage(cMessage* msg) {
                 commit_msg->setDigest(req->getDigest());
                 commit_msg->setCreatorAddress(thisNode);
                 commit_msg->setCreatorKey(overlay->getThisNode().getKey());
+                commit_msg->setBitLength(PBFTCOMMIT(commit_msg));
 
                 broadcast(commit_msg);
                 delete commit_msg;
@@ -499,6 +503,7 @@ void PBFT::handleUDPMessage(cMessage* msg) {
 
                             reply_msg->setCreatorAddress(thisNode);
                             reply_msg->setCreatorKey(overlay->getThisNode().getKey());
+                            reply_msg->setBitLength(PBFTREPLY(reply_msg));
 
                             broadcast(reply_msg);
                             delete reply_msg;
@@ -569,6 +574,12 @@ void PBFT::broadcast(cMessage* msg){
            << endl;
 
     PBFTMessage *myMsg = dynamic_cast<PBFTMessage*>(msg);
+
+    // myMsg->setByteLength();
+
+    // myMsg->setBitLength(PBFTMESSAGE_L(myMsg));
+
+    EV <<" MSG Length: " << myMsg->getBitLength() << endl;
 
     // This call returns k random nodes from the partialView, + myself
     NodeVector* nodes = callNeighborSet(k);

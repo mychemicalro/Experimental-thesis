@@ -39,6 +39,7 @@ class Block {
         int getCapacity(){return capacity;}
         string getHash(){return hash;}
         int getSeqNumber(){return seqNumber;}
+        size_t getBlockOpsNumber(){return operations.size();}
 
         //Setters
         void addOperation(Operation& op);
