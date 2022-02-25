@@ -32,7 +32,7 @@ public:
     }
 
     // initialize parameters and data structure
-    virtual void initializeChain();
+    virtual void initializeChain(const OverlayKey& ok);
 
     /**
      * Adds block to the blockchain
@@ -54,6 +54,7 @@ protected:
 
 private:
     vector<Block> blocks;
+    OverlayKey overlayk;
 
 };
 

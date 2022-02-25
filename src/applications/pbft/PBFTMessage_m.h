@@ -118,9 +118,6 @@ inline void doUnpacking(cCommBuffer *b, PBFTMessage& obj) {obj.parsimUnpack(b);}
  * packet PBFTRequestMessage extends PBFTMessage {
  * 	type = REQUEST;
  * 	Operation op;
- * 	
- * 	
- * 	
  * }
  * </pre>
  */

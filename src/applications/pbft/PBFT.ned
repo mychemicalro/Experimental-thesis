@@ -23,6 +23,8 @@ simple Blockchain{
 
 simple ReplicaState{
 	@display("i=block/table2");
+	int f = 1; 		// number of max simultaneous faulty nodes 
+	    
 }
 
 simple PBFT extends BaseApp
@@ -33,6 +35,8 @@ simple PBFT extends BaseApp
         double joinDelay @unit(s) = default(1s);   // seconds before the application tries to join the network 
         int blockCapacity = default(1);			   // the number of operations a block can contain 
         double requestDelay @unit(s) = default(10s); 	// the number of seconds between a client's request and the next one
+        double replyDelay @unit(s) = default(3s); 		// the interval after a request is considered expired by the client, that will resend it. 
+        double clientProb = default(0.5); 				// the probability a node is also a client
 }
 
 import oversim.common.ITier;

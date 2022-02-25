@@ -20,7 +20,7 @@ class Operation {
         // Getters
         simtime_t getTimestamp(){return timestamp;}
         Operation& getOp();
-        OverlayKey getOriginatorKey(){return originator.first;}
+        OverlayKey getOriginatorKey() const {return originator.first;}
         IPvXAddress getIp(){return originator.second;}
         string getHash() const {return hash;}
 

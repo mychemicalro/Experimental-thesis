@@ -28,6 +28,7 @@ void PBFT::initializeApp(int stage){
 
     k = par("k");
     joinDelay = par("joinDelay");
+    clientProb = par("clientProb");
 
     numSent = 0;
     numReceived = 0;
@@ -36,10 +37,11 @@ void PBFT::initializeApp(int stage){
 
     blockCapacity = par("blockCapacity");
 
-
     // TODO watermarks advance mode
     h = 0;
-    H = 128;
+    H = 256; // Log size
+    checkpointPeriod = 128; // in this way, when a replica procesess block with seqNum = 128,
+    // it will create a checkpoint, h will be 128 and H will be 256+128.
 
     S_PREPREPARE = false;
     S_PREPARE = false;
@@ -106,15 +108,23 @@ void PBFT::changeState(States toState){
             state = READY;
 
             // Let's make this a client TODO This will have to be removed
-            if (this->overlay->getThisNode().getKey() < OverlayKey(2)){
+            // Decide if the node must be a client -> probability
+
+            double prob = uniform(0, 1);
+            EV << "Probability: " << prob << endl;
+
+            if (prob < clientProb){
                 nodeType = REPLICAANDCLIENT;
+                EV << "Replica: " << thisNode.getIp() << " is CLIENT" << endl;
 
                 // Set timer for sending messages
                 clientTimer = new cMessage("Client timer");
+                replyTimer = new cMessage("Reply timer");
+
+                replyDelay = par("replyDelay");
                 requestDelay = par("requestDelay");
 
-                // TODO add some delay parameter
-                scheduleAt(simTime() + uniform(1,3), clientTimer);
+                scheduleAt(simTime() + requestDelay, clientTimer);
             }
 
             // TODO solve cancelAndDelete(joinTimer) issue in the destructor of PBFT
@@ -194,17 +204,25 @@ void PBFT::handleTimerEvent(cMessage* msg) {
 
         Operation op = Operation(this->overlay->getThisNode().getKey(), thisNode.getIp(), simTime());
         EV << "Client request hash: " << op.getHash() << endl;
+        EV << "Sending client operation at: " << simTime() << endl;
         PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTRequestMessage");
         msg->setOp(op);
         msg->setBitLength(PBFTREQUEST(msg));
 
-        // TODO Start a timer because the client has to receive a weak certificate before the timer triggers.
-        // Otherwise, the client retransmits the request.
-
+        // Remember the request for the replyTimer
+        actualRequest = msg->dup();
         broadcast(msg);
         delete msg;
 
-        scheduleAt(simTime() + requestDelay, clientTimer);
+        scheduleAt(simTime() + replyDelay, replyTimer);
+
+    } else if(msg == replyTimer){
+        // I know the timestamp of the request
+        EV << "Broadcasting again request with timestamp: " << replyTimer->getSendingTime() << endl;
+        EV << "Actual request: " << actualRequest->getOp().getHash() << endl;
+        broadcast(actualRequest);
+
+        scheduleAt(simTime() + replyDelay, replyTimer);
 
     } else {
         delete msg; // unknown packet
@@ -218,7 +236,7 @@ void PBFT::findFriendModules(){
 }
 
 void PBFT::initializeFriendModules(){
-    chainModule->initializeChain();
+    chainModule->initializeChain(this->overlay->getThisNode().getKey());
     replicaStateModule->initializeState();
 }
 
@@ -259,11 +277,16 @@ void PBFT::handleUDPMessage(cMessage* msg) {
                 EV << "Request already seen - Request not processed -- returning " << endl;
 
                 // TODO Check if the request has already been processed. If yes, it should retransmit the reply.
+                // What about the gossiping?
                 // Replicas must remember the last reply message they sent to each client.
+
+
 
                 delete req;
                 return;
             }
+
+            // TODO Discard requests with a lower timestamp than the last reply timestamp sent to this client -> exactly once semantics.
 
             // Insert into log, save things like digest, sender, etc
             replicaStateModule->addToRequestsLog(req);
@@ -505,6 +528,8 @@ void PBFT::handleUDPMessage(cMessage* msg) {
                             reply_msg->setCreatorKey(overlay->getThisNode().getKey());
                             reply_msg->setBitLength(PBFTREPLY(reply_msg));
 
+                            // TODO Remember this reply for the client, in case it's timer expires
+
                             broadcast(reply_msg);
                             delete reply_msg;
                         }
@@ -543,6 +568,15 @@ void PBFT::handleUDPMessage(cMessage* msg) {
                 // The client waits for a weak certificate of f+1 replies. This will be called reply certificate.
                 if(replicaStateModule->searchReplyCertificate(rep)){
                     EV << "Found reply certificate --> Accepted result: " << rep->getOperationResult() << endl;
+                    EV << "Request timestamp: " << rep->getOp().getTimestamp() << endl;
+                    EV << "Actual simtime: " << simTime() << endl;
+
+                    // Delete the replyTimer ...
+                    cancelEvent(replyTimer);
+
+                    // Create a new request
+                    scheduleAt(simTime() + requestDelay, clientTimer);
+
                 }
             }
 

@@ -38,9 +38,9 @@ string Block::computeHash() {
 }
 
 void Block::addOperation(Operation& op){
-    EV << "trying to add operation" << op.getHash() << " to block: " << capacity << endl;
+    EV << "trying to add operation: " << op.getHash() << " to block: " << this->hash << endl;
     operations.push_back(op);
-    EV << "operations size: " << operations.size() << endl;
+    EV << "Block size: " << operations.size() << endl;
 }
 
 bool Block::isFull(){

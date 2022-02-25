@@ -101,6 +101,7 @@ private:
     // Class variables
     int currentView;
     bool primary; /* this replica is primary*/
+    int f;
 
     // TODO Message log
     std::vector<PBFTRequestMessage> requests;

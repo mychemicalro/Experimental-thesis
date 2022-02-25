@@ -59,9 +59,6 @@ packet PBFTMessage {
 packet PBFTRequestMessage extends PBFTMessage {
 	type = REQUEST;
 	Operation op;
-	// TransportAddress clientAddress;
-	// OverlayKey clientKey;
-	// simtime_t timestamp; 
 }
 
 packet PBFTPreprepareMessage extends PBFTMessage {

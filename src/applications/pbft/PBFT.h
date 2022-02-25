@@ -14,6 +14,7 @@ class PBFT : public BaseApp {
     int k;
     double joinDelay;
     double requestDelay;
+    double replyDelay;
 
     // statistics
     int numSent;              //number of packets sent
@@ -22,6 +23,9 @@ class PBFT : public BaseApp {
     // our timer
     cMessage *joinTimer;
     cMessage *clientTimer;  // timer to send messages as a client
+    cMessage *replyTimer;  // timer after which a client resends the request
+
+    PBFTRequestMessage* actualRequest;
 
     // application routines
     void initializeApp(int stage);                 // called when the module is being created
@@ -114,6 +118,8 @@ protected:
 
     int h; // low watermark
     int H; // high watermark
+    int checkpointPeriod;
+    double clientProb;
 
     // Algorithm attributes
     int sequenceNumber;
@@ -121,6 +127,9 @@ protected:
     int blockCapacity;
     Block* nextBlock;
     map<string,Block> candidateBlocks;
+
+    // A map containing, for each client, the latest reply.
+    // TODO
 
     bool S_PREPREPARE;
     bool S_PREPARE;

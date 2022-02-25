@@ -31,9 +31,11 @@ void ReplicaState::initializeState() {
     requests.clear();
     preprepares.clear();
     prepares.clear();
+    f = par("f");
 
     WATCH(primary);
     WATCH(currentView);
+    WATCH(f);
 
     // TODO
     // WATCH_VECTOR(requests);
@@ -171,6 +173,7 @@ bool ReplicaState::seenRequest(cMessage* msg){
          *      - same operationResult
          *      - same view
          *      - same operation
+         *      - same timestamp
          */
         for(size_t i=0; i<replies.size(); i++){
             // TODO make some check
@@ -181,7 +184,9 @@ bool ReplicaState::seenRequest(cMessage* msg){
                 if(replies.at(i).getView() == myMsg->getView()){
                     if(replies.at(i).getOperationResult() == myMsg->getOperationResult()){
                         if(replies.at(i).getReplicaNumber() == myMsg->getReplicaNumber()){
-                            return true;
+                            if(replies.at(i).getOp().getTimestamp() == myMsg->getOp().getTimestamp()){
+                                return true;
+                            }
                         }
                     }
                 }
@@ -198,7 +203,6 @@ bool ReplicaState::seenRequest(cMessage* msg){
 bool ReplicaState::searchPreparedCertificate(PBFTPrepareMessage* m){
     int prepare_c = 0;
     int preprepare_c = 0;
-    int f = 1;
 
     for(size_t i=0; i<prepares.size(); i++){
         if(strcmp(prepares.at(i).getDigest(), m->getDigest()) == 0){
@@ -230,7 +234,6 @@ bool ReplicaState::searchPreparedCertificate(PBFTPrepareMessage* m){
 
 bool ReplicaState::searchCommittedCertificate(PBFTCommitMessage* m){
     int commits_c = 0;
-    int f = 1;
 
     for(size_t i=0; i<commits.size(); i++){
         if(strcmp(commits.at(i).getDigest(), m->getDigest()) == 0){
@@ -242,7 +245,7 @@ bool ReplicaState::searchCommittedCertificate(PBFTCommitMessage* m){
     }
 
     if (commits_c == 2*f +1){ // TODO exact match on commits_c, maybe ge than 2f?
-        EV << "Found Committed Certificate! " << endl;
+        EV << "Found Committed Certificate! block hash: " << m->getDigest() << endl;
         return true;
     }
 
@@ -265,7 +268,6 @@ bool ReplicaState::otherPreprepareAccepted(PBFTPreprepareMessage* msg){
 
 bool ReplicaState::searchReplyCertificate(PBFTReplyMessage* msg){
     int replies_c = 0;
-    int f = 1;
 
     for(size_t i=0; i<replies.size(); i++){
 
