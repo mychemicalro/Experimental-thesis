@@ -45,6 +45,7 @@ Register_Class(PBFTMessage);
 PBFTMessage::PBFTMessage(const char *name, int kind) : cPacket(name,kind)
 {
     this->type_var = 0;
+    this->retryNumber_var = 0;
 }
 
 PBFTMessage::PBFTMessage(const PBFTMessage& other) : cPacket(other)
@@ -67,6 +68,7 @@ PBFTMessage& PBFTMessage::operator=(const PBFTMessage& other)
 void PBFTMessage::copy(const PBFTMessage& other)
 {
     this->type_var = other.type_var;
+    this->retryNumber_var = other.retryNumber_var;
     this->creatorAddress_var = other.creatorAddress_var;
     this->creatorKey_var = other.creatorKey_var;
 }
@@ -75,6 +77,7 @@ void PBFTMessage::parsimPack(cCommBuffer *b)
 {
     cPacket::parsimPack(b);
     doPacking(b,this->type_var);
+    doPacking(b,this->retryNumber_var);
     doPacking(b,this->creatorAddress_var);
     doPacking(b,this->creatorKey_var);
 }
@@ -83,6 +86,7 @@ void PBFTMessage::parsimUnpack(cCommBuffer *b)
 {
     cPacket::parsimUnpack(b);
     doUnpacking(b,this->type_var);
+    doUnpacking(b,this->retryNumber_var);
     doUnpacking(b,this->creatorAddress_var);
     doUnpacking(b,this->creatorKey_var);
 }
@@ -95,6 +99,16 @@ int PBFTMessage::getType() const
 void PBFTMessage::setType(int type)
 {
     this->type_var = type;
+}
+
+int PBFTMessage::getRetryNumber() const
+{
+    return retryNumber_var;
+}
+
+void PBFTMessage::setRetryNumber(int retryNumber)
+{
+    this->retryNumber_var = retryNumber;
 }
 
 TransportAddress& PBFTMessage::getCreatorAddress()
@@ -164,7 +178,7 @@ const char *PBFTMessageDescriptor::getProperty(const char *propertyname) const
 int PBFTMessageDescriptor::getFieldCount(void *object) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
-    return basedesc ? 3+basedesc->getFieldCount(object) : 3;
+    return basedesc ? 4+basedesc->getFieldCount(object) : 4;
 }
 
 unsigned int PBFTMessageDescriptor::getFieldTypeFlags(void *object, int field) const
@@ -177,10 +191,11 @@ unsigned int PBFTMessageDescriptor::getFieldTypeFlags(void *object, int field) c
     }
     static unsigned int fieldTypeFlags[] = {
         FD_ISEDITABLE,
+        FD_ISEDITABLE,
         FD_ISCOMPOUND,
         FD_ISCOMPOUND,
     };
-    return (field>=0 && field<3) ? fieldTypeFlags[field] : 0;
+    return (field>=0 && field<4) ? fieldTypeFlags[field] : 0;
 }
 
 const char *PBFTMessageDescriptor::getFieldName(void *object, int field) const
@@ -193,10 +208,11 @@ const char *PBFTMessageDescriptor::getFieldName(void *object, int field) const
     }
     static const char *fieldNames[] = {
         "type",
+        "retryNumber",
         "creatorAddress",
         "creatorKey",
     };
-    return (field>=0 && field<3) ? fieldNames[field] : NULL;
+    return (field>=0 && field<4) ? fieldNames[field] : NULL;
 }
 
 int PBFTMessageDescriptor::findField(void *object, const char *fieldName) const
@@ -204,8 +220,9 @@ int PBFTMessageDescriptor::findField(void *object, const char *fieldName) const
     cClassDescriptor *basedesc = getBaseClassDescriptor();
     int base = basedesc ? basedesc->getFieldCount(object) : 0;
     if (fieldName[0]=='t' && strcmp(fieldName, "type")==0) return base+0;
-    if (fieldName[0]=='c' && strcmp(fieldName, "creatorAddress")==0) return base+1;
-    if (fieldName[0]=='c' && strcmp(fieldName, "creatorKey")==0) return base+2;
+    if (fieldName[0]=='r' && strcmp(fieldName, "retryNumber")==0) return base+1;
+    if (fieldName[0]=='c' && strcmp(fieldName, "creatorAddress")==0) return base+2;
+    if (fieldName[0]=='c' && strcmp(fieldName, "creatorKey")==0) return base+3;
     return basedesc ? basedesc->findField(object, fieldName) : -1;
 }
 
@@ -219,10 +236,11 @@ const char *PBFTMessageDescriptor::getFieldTypeString(void *object, int field) c
     }
     static const char *fieldTypeStrings[] = {
         "int",
+        "int",
         "TransportAddress",
         "OverlayKey",
     };
-    return (field>=0 && field<3) ? fieldTypeStrings[field] : NULL;
+    return (field>=0 && field<4) ? fieldTypeStrings[field] : NULL;
 }
 
 const char *PBFTMessageDescriptor::getFieldProperty(void *object, int field, const char *propertyname) const
@@ -266,8 +284,9 @@ std::string PBFTMessageDescriptor::getFieldAsString(void *object, int field, int
     PBFTMessage *pp = (PBFTMessage *)object; (void)pp;
     switch (field) {
         case 0: return long2string(pp->getType());
-        case 1: {std::stringstream out; out << pp->getCreatorAddress(); return out.str();}
-        case 2: {std::stringstream out; out << pp->getCreatorKey(); return out.str();}
+        case 1: return long2string(pp->getRetryNumber());
+        case 2: {std::stringstream out; out << pp->getCreatorAddress(); return out.str();}
+        case 3: {std::stringstream out; out << pp->getCreatorKey(); return out.str();}
         default: return "";
     }
 }
@@ -283,6 +302,7 @@ bool PBFTMessageDescriptor::setFieldAsString(void *object, int field, int i, con
     PBFTMessage *pp = (PBFTMessage *)object; (void)pp;
     switch (field) {
         case 0: pp->setType(string2long(value)); return true;
+        case 1: pp->setRetryNumber(string2long(value)); return true;
         default: return false;
     }
 }
@@ -297,10 +317,11 @@ const char *PBFTMessageDescriptor::getFieldStructName(void *object, int field) c
     }
     static const char *fieldStructNames[] = {
         NULL,
+        NULL,
         "TransportAddress",
         "OverlayKey",
     };
-    return (field>=0 && field<3) ? fieldStructNames[field] : NULL;
+    return (field>=0 && field<4) ? fieldStructNames[field] : NULL;
 }
 
 void *PBFTMessageDescriptor::getFieldStructPointer(void *object, int field, int i) const
@@ -313,8 +334,8 @@ void *PBFTMessageDescriptor::getFieldStructPointer(void *object, int field, int 
     }
     PBFTMessage *pp = (PBFTMessage *)object; (void)pp;
     switch (field) {
-        case 1: return (void *)(&pp->getCreatorAddress()); break;
-        case 2: return (void *)(&pp->getCreatorKey()); break;
+        case 2: return (void *)(&pp->getCreatorAddress()); break;
+        case 3: return (void *)(&pp->getCreatorKey()); break;
         default: return NULL;
     }
 }

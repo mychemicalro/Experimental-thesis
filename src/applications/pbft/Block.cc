@@ -38,9 +38,20 @@ string Block::computeHash() {
 }
 
 void Block::addOperation(Operation& op){
-    EV << "trying to add operation: " << op.getHash() << " to block: " << this->hash << endl;
+    // If the block already contains the op, do not include it
+
+    EV << "Trying to add operation: " << op.getHash() << " to block: " << this->hash << endl;
+
+    for(size_t i=0; i<operations.size(); i++){
+        if(operations.at(i).getHash() == op.getHash()){
+            EV << "Operation not added" << endl;
+            return;
+        }
+    }
+
     operations.push_back(op);
-    EV << "Block size: " << operations.size() << endl;
+    EV << "Operation added - Block size: " << operations.size() << endl;
+
 }
 
 bool Block::isFull(){

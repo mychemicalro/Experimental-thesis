@@ -72,9 +72,9 @@ public:
     void addToRepliesLog(PBFTReplyMessage* msg);
 
     /**
-     * Returns true if the request is already present in requests
+     * Returns true if the message is already present in the log
      */
-    bool seenRequest(cMessage* msg);
+    bool seenMessage(cMessage* msg);
 
     /**
      * Check if there is some PreparedCertificate for some message m.
@@ -92,6 +92,11 @@ public:
      * Check if the replica hash accepted another prepare with same seqNum and view but with different digest
      */
     bool otherPreprepareAccepted(PBFTPreprepareMessage* msg);
+
+    /**
+     * Returns true if for the request in input there was also a reply -> meaning that the operation is already in the blockchain
+     */
+    bool requestHasReply(PBFTRequestMessage* msg);
 
 
 

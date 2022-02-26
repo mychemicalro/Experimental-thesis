@@ -19,9 +19,10 @@ static const int REPLICANUMBER_L = 32;
 static const int CREATORADDRESS_L = 32; 
 static const int CREATORKEY_L = 32;
 static const int BLOCK_L = 88; // TODO strings(64) + 3 int (24) + 208*size()op
+static const int RETRYNUMBER_L = 8;
 
 
-#define PBFTMESSAGE_L(msg) (BASECALL_L(msg) + MESSAGETYPE_L)
+#define PBFTMESSAGE_L(msg) (BASECALL_L(msg) + MESSAGETYPE_L + RETRYNUMBER_L)
 #define PBFTREQUEST(msg) (PBFTMESSAGE_L(msg) + OPERATION_L)
 #define PBFTPREPREPARE(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L + OPERATION_L * msg->getBlock().getBlockOpsNumber())
 #define PBFTPREPARE(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L  + CREATORADDRESS_L + CREATORKEY_L)
@@ -50,6 +51,7 @@ enum MessageType {
 
 packet PBFTMessage {
     int type enum (MessageType);         // message type
+    int retryNumber = 0;				 // acts like a sequence number for all messages
   
 	TransportAddress creatorAddress;      // address of the node that created the message
     OverlayKey creatorKey;				 // overlayKey of the node that created the message

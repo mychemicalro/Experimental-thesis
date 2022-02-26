@@ -107,6 +107,11 @@ public:
      */
     void initializeFriendModules();
 
+    /**
+     * Adds a reply to the lastReplies vector if there is not a message with
+     * same client and greater timestamp
+     */
+    void addToLastReplies(PBFTReplyMessage& reply_msg);
 
 
 protected:
@@ -130,6 +135,7 @@ protected:
 
     // A map containing, for each client, the latest reply.
     // TODO
+    vector<PBFTReplyMessage> lastReplies;
 
     bool S_PREPREPARE;
     bool S_PREPARE;

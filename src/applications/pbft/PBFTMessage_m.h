@@ -31,9 +31,10 @@ static const int REPLICANUMBER_L = 32;
 static const int CREATORADDRESS_L = 32; 
 static const int CREATORKEY_L = 32;
 static const int BLOCK_L = 88; 
+static const int RETRYNUMBER_L = 8;
 
 
-#define PBFTMESSAGE_L(msg) (BASECALL_L(msg) + MESSAGETYPE_L)
+#define PBFTMESSAGE_L(msg) (BASECALL_L(msg) + MESSAGETYPE_L + RETRYNUMBER_L)
 #define PBFTREQUEST(msg) (PBFTMESSAGE_L(msg) + OPERATION_L)
 #define PBFTPREPREPARE(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L + OPERATION_L * msg->getBlock().getBlockOpsNumber())
 #define PBFTPREPARE(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L  + CREATORADDRESS_L + CREATORKEY_L)
@@ -68,6 +69,7 @@ enum MessageType {
  * <pre>
  * packet PBFTMessage {
  *     int type enum (MessageType);         
+ *     int retryNumber = 0;				 
  *   
  * 	TransportAddress creatorAddress;      
  *     OverlayKey creatorKey;				 
@@ -79,6 +81,7 @@ class PBFTMessage : public ::cPacket
 {
   protected:
     int type_var;
+    int retryNumber_var;
     TransportAddress creatorAddress_var;
     OverlayKey creatorKey_var;
 
@@ -101,6 +104,8 @@ class PBFTMessage : public ::cPacket
     // field getter/setter methods
     virtual int getType() const;
     virtual void setType(int type);
+    virtual int getRetryNumber() const;
+    virtual void setRetryNumber(int retryNumber);
     virtual TransportAddress& getCreatorAddress();
     virtual const TransportAddress& getCreatorAddress() const {return const_cast<PBFTMessage*>(this)->getCreatorAddress();}
     virtual void setCreatorAddress(const TransportAddress& creatorAddress);

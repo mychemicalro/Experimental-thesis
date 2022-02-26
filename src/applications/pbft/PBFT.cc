@@ -220,6 +220,7 @@ void PBFT::handleTimerEvent(cMessage* msg) {
         // I know the timestamp of the request
         EV << "Broadcasting again request with timestamp: " << replyTimer->getSendingTime() << endl;
         EV << "Actual request: " << actualRequest->getOp().getHash() << endl;
+        actualRequest->setRetryNumber(actualRequest->getRetryNumber() + 1);
         broadcast(actualRequest);
 
         scheduleAt(simTime() + replyDelay, replyTimer);
@@ -272,15 +273,33 @@ void PBFT::handleUDPMessage(cMessage* msg) {
             PBFTRequestMessage* req = dynamic_cast<PBFTRequestMessage*>(myMsg);
             EV << "Received PBFTRequest at: " << thisNode.getIp() << " with digest: " << req->getOp().getHash() << endl;
 
-            // Check if already seen
-            if (replicaStateModule->seenRequest(msg)){
-                EV << "Request already seen - Request not processed -- returning " << endl;
+            // Check if request already seen
+            if (replicaStateModule->seenMessage(msg)){
+                EV << "Request already seen -- retryNumber " << req->getRetryNumber() << endl;
 
                 // TODO Check if the request has already been processed. If yes, it should retransmit the reply.
                 // What about the gossiping?
                 // Replicas must remember the last reply message they sent to each client.
 
+                if(replicaStateModule->requestHasReply(req)){
+                    // broadcast reply (with an increased retryNumber)
 
+                    PBFTReplyMessage* reply_msg = new PBFTReplyMessage("PBFTReplyMessage");
+                    reply_msg->setView(replicaStateModule->getCurrentView());
+
+                    reply_msg->setOp(req->getOp());
+                    reply_msg->setReplicaNumber(this->overlay->getThisNode().getKey());
+                    reply_msg->setOperationResult(OK);
+
+                    reply_msg->setCreatorAddress(thisNode);
+                    reply_msg->setCreatorKey(overlay->getThisNode().getKey());
+                    reply_msg->setBitLength(PBFTREPLY(reply_msg));
+                    reply_msg->setRetryNumber(req->getRetryNumber());
+
+                    broadcast(reply_msg);
+                    delete reply_msg;
+
+                }
 
                 delete req;
                 return;
@@ -296,10 +315,32 @@ void PBFT::handleUDPMessage(cMessage* msg) {
             // Gossip the request
             broadcast(req);
 
+            // Intermediate step!
+            // This may be a retry from the client ...
+            if(replicaStateModule->requestHasReply(req)){
+
+                PBFTReplyMessage* reply_msg = new PBFTReplyMessage("PBFTReplyMessage");
+                reply_msg->setView(replicaStateModule->getCurrentView());
+
+                reply_msg->setOp(req->getOp());
+                reply_msg->setReplicaNumber(this->overlay->getThisNode().getKey());
+                reply_msg->setOperationResult(OK);
+
+                reply_msg->setCreatorAddress(thisNode);
+                reply_msg->setCreatorKey(overlay->getThisNode().getKey());
+                reply_msg->setBitLength(PBFTREPLY(reply_msg));
+                reply_msg->setRetryNumber(req->getRetryNumber());
+
+                broadcast(reply_msg);
+                delete reply_msg;
+
+                // I need to end here
+                return;
+            }
+
             // If I am the primary and if authentication is OK, assign sequence number and multicast PREPREPARE message
             if (replicaStateModule->getPrimary()) {
 
-                // Blocks part
                 nextBlock->addOperation(req->getOp());
 
                 if (nextBlock->isFull()){
@@ -357,7 +398,7 @@ void PBFT::handleUDPMessage(cMessage* msg) {
              */
 
             // Check if already processed this message?
-            if (replicaStateModule->seenRequest(req)){
+            if (replicaStateModule->seenMessage(req)){
                 EV << "Preprepare already seen - Preprepare not processed -- returning " << endl;
                 delete req;
                 return;
@@ -434,7 +475,7 @@ void PBFT::handleUDPMessage(cMessage* msg) {
         case PREPARE: {
             PBFTPrepareMessage *req = dynamic_cast<PBFTPrepareMessage*>(myMsg);
 
-            if (replicaStateModule->seenRequest(req)){
+            if (replicaStateModule->seenMessage(req)){
                 EV << "Prepare already seen - Prepare not processed -- returning " << endl;
                 delete req;
                 return;
@@ -468,7 +509,7 @@ void PBFT::handleUDPMessage(cMessage* msg) {
         case COMMIT: {
             PBFTCommitMessage *req = dynamic_cast<PBFTCommitMessage*>(myMsg);
 
-            if (replicaStateModule->seenRequest(req)){
+            if (replicaStateModule->seenMessage(req)){
                 EV << "Commit already seen - Commit not processed -- returning " << endl;
                 delete req;
                 return;
@@ -528,12 +569,13 @@ void PBFT::handleUDPMessage(cMessage* msg) {
                             reply_msg->setCreatorKey(overlay->getThisNode().getKey());
                             reply_msg->setBitLength(PBFTREPLY(reply_msg));
 
-                            // TODO Remember this reply for the client, in case it's timer expires
+                            // TODO Remember this reply for the client, in case it's timer expires -> I have the replies vector.
+                            // Can check there if I already have replies to some request.
+                            // addToLastReplies(*reply_msg);
 
                             broadcast(reply_msg);
                             delete reply_msg;
                         }
-
                     }
                 }
             }
@@ -551,7 +593,7 @@ void PBFT::handleUDPMessage(cMessage* msg) {
              * If found, accept the reply.
              */
 
-            if(replicaStateModule->seenRequest(rep)){
+            if(replicaStateModule->seenMessage(rep)){
                 EV << "Reply already seen - Reply not processed -- returning " << endl;
                 delete rep;
                 return;
@@ -623,8 +665,10 @@ void PBFT::broadcast(cMessage* msg){
         // send UDP message
         nodes->at(i).setPort(2048);
         if (nodes->at(i).getIp() == thisNode.getIp()){
-            // Need to add some delay since I am sending the message to myself.
-            sendMessageToUDP(nodes->at(i), myMsg->dup(), uniform(0, 1));
+            // TODO Need to add some delay since I am sending the message to myself?
+            // sendMessageToUDP(nodes->at(i), myMsg->dup(), uniform(0, 0.100));
+            sendMessageToUDP(nodes->at(i), myMsg->dup());
+
         } else {
             sendMessageToUDP(nodes->at(i), myMsg->dup());
         }
@@ -660,6 +704,27 @@ bool PBFT::isPrimary(){
     return false;
 }
 
+// TODO Metodo inutile
+void PBFT::addToLastReplies(PBFTReplyMessage& reply_msg){
+
+    // Before adding, check if the message can be added
+    bool canAdd = true;
+
+    for(size_t i=0; i<lastReplies.size(); i++){
+        if (reply_msg.getOp().getOriginatorKey() == lastReplies.at(i).getOp().getOriginatorKey()){
+            EV << "Old op hash: " << lastReplies.at(i).getOp().getHash() << endl;
+            if (reply_msg.getOp().getTimestamp() < lastReplies.at(i).getOp().getTimestamp()){
+                canAdd = false;
+                EV << "Reply cannot be added to the lastReplies vector" << endl;
+            }
+        }
+    }
+
+    if (canAdd){
+        lastReplies.push_back(reply_msg);
+        EV << "Reply added to the lastReplies vector" << endl;
+    }
+}
 
 
 

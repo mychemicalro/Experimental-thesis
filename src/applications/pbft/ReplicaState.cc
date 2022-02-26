@@ -45,7 +45,7 @@ void ReplicaState::initializeState() {
 }
 
 void ReplicaState::addToRequestsLog(PBFTRequestMessage* msg){
-    // if (seenRequest(msg)) return; // useless check ...
+    if (seenMessage(msg)) return; // useless check ...
     requests.push_back(*msg);
     EV << "Added a PBFTRequestMessage" << endl;
 }
@@ -66,7 +66,7 @@ bool ReplicaState::digestInRequestsLog(const char* digest){
 
 
 void ReplicaState::addToPrepreparesLog(PBFTPreprepareMessage* msg){
-    if (seenRequest(msg)) return;
+    if (seenMessage(msg)) return;
     preprepares.push_back(*msg);
     EV << "Added a PBFTPreprepareMessage" << endl;
 
@@ -74,7 +74,7 @@ void ReplicaState::addToPrepreparesLog(PBFTPreprepareMessage* msg){
 
 void ReplicaState::addToPreparesLog(PBFTPrepareMessage* msg){
 
-    if (seenRequest(msg)) return;
+    if (seenMessage(msg)) return;
     prepares.push_back(*msg);
     EV << "Added a PBFTPrepareMessage to plain vector" << endl;
     EV << "prepares size:" << prepares.size() << endl;
@@ -82,7 +82,7 @@ void ReplicaState::addToPreparesLog(PBFTPrepareMessage* msg){
 }
 
 void ReplicaState::addToCommitsLog(PBFTCommitMessage* msg){
-    if (seenRequest(msg)) return;
+    if (seenMessage(msg)) return;
     commits.push_back(*msg);
     EV << "Added a PBFTCommitMessage to plain vector" << endl;
     EV << "commits size:" << commits.size() << endl;
@@ -90,13 +90,13 @@ void ReplicaState::addToCommitsLog(PBFTCommitMessage* msg){
 }
 
 void ReplicaState::addToRepliesLog(PBFTReplyMessage* msg){
-    if (seenRequest(msg)) return;
+    if (seenMessage(msg)) return;
     replies.push_back(*msg);
     EV << "Added a PBFTReplyMessage to plain vector" << endl;
     EV << "replies size:" << replies.size() << endl;
 }
 
-bool ReplicaState::seenRequest(cMessage* msg){
+bool ReplicaState::seenMessage(cMessage* msg){
 
     if (dynamic_cast<PBFTRequestMessage*>(msg)){
         PBFTRequestMessage *myMsg = dynamic_cast<PBFTRequestMessage*>(msg);
@@ -106,8 +106,11 @@ bool ReplicaState::seenRequest(cMessage* msg){
             // Check the hash
             // strcmp(requests.at(i).getOp().getHash(), myMsg->getOp().getHash()) == 0
             if (requests.at(i).getOp().getHash() == myMsg->getOp().getHash()){
-                EV << "Request found - returning true" << endl;
-                return true;
+                if (requests.at(i).getRetryNumber() == myMsg->getRetryNumber()){
+                    EV << "Request found - returning true" << endl;
+                    return true;
+                }
+
             }
         }
 
@@ -174,6 +177,7 @@ bool ReplicaState::seenRequest(cMessage* msg){
          *      - same view
          *      - same operation
          *      - same timestamp
+         *      - same retryNumber
          */
         for(size_t i=0; i<replies.size(); i++){
             // TODO make some check
@@ -185,7 +189,9 @@ bool ReplicaState::seenRequest(cMessage* msg){
                     if(replies.at(i).getOperationResult() == myMsg->getOperationResult()){
                         if(replies.at(i).getReplicaNumber() == myMsg->getReplicaNumber()){
                             if(replies.at(i).getOp().getTimestamp() == myMsg->getOp().getTimestamp()){
-                                return true;
+                                if(replies.at(i).getRetryNumber() == myMsg->getRetryNumber()){
+                                    return true;
+                                }
                             }
                         }
                     }
@@ -285,7 +291,24 @@ bool ReplicaState::searchReplyCertificate(PBFTReplyMessage* msg){
     return false;
 }
 
-
+bool ReplicaState::requestHasReply(PBFTRequestMessage* msg){
+    /**
+     * The reply must have the same:
+     *      - operation hash
+     *      - operation client
+     *
+     */
+    for(size_t i=0; i<replies.size(); i++){
+        if(msg->getOp().getHash() == replies.at(i).getOp().getHash()){
+            if(msg->getOp().getOriginatorKey() == replies.at(i).getOp().getOriginatorKey()){
+                EV << "Request already has a reply at this replica. " << endl;
+                return true;
+            }
+        }
+    }
+    EV << "There is not a reply for this request. " << endl;
+    return false;
+}
 
 
 
