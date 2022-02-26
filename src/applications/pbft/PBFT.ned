@@ -23,7 +23,7 @@ simple Blockchain{
 
 simple ReplicaState{
 	@display("i=block/table2");
-	int f = 1; 		// number of max simultaneous faulty nodes 
+	int f = default(1); 		// number of max simultaneous faulty nodes 
 	    
 }
 

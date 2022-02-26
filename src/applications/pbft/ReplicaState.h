@@ -21,7 +21,10 @@
  *
  * It maintains:
  *      - a requests vector
- *      -
+ *      - a preprepares vector
+ *      - a prepares vector
+ *      - a commits vector
+ *      - a replies vector
  *
  */
 
@@ -37,7 +40,7 @@ public:
     }
 
     // initialize parameters and data structure
-    virtual void initializeState();
+    virtual void initializeState(const OverlayKey* ok);
 
     // Getters
     int getCurrentView(){ return currentView; }
@@ -84,6 +87,9 @@ public:
      */
     bool searchPreparedCertificate(PBFTPrepareMessage* m);
 
+    /**
+     * I need to have also my commit message.
+     */
     bool searchCommittedCertificate(PBFTCommitMessage* m);
 
     bool searchReplyCertificate(PBFTReplyMessage* m);
@@ -97,7 +103,6 @@ public:
      * Returns true if for the request in input there was also a reply -> meaning that the operation is already in the blockchain
      */
     bool requestHasReply(PBFTRequestMessage* msg);
-
 
 
 protected:
@@ -115,7 +120,7 @@ private:
     std::vector<PBFTCommitMessage> commits;
     std::vector<PBFTReplyMessage> replies;
 
-    std::map<const char*, std::vector<PBFTPrepareMessage> > prepares_map;
+    const OverlayKey* overlayk;
 
 };
 

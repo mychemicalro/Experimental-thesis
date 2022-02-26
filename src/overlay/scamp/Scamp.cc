@@ -1134,7 +1134,7 @@ void Scamp::route(const OverlayKey& key, CompType destComp, CompType srcComp, cP
 NodeVector* Scamp::neighborSet(int num){
     if(DEBUG)
         EV << "[Scamp::neighborSet() @ " << thisNode.getIp()
-           << " (" << thisNode.getKey().toString(16) << ")]\n"
+           << " (" << thisNode.getKey().toString(16) << ")]"
            << endl;
 
     NodeVector* nodes = new NodeVector();

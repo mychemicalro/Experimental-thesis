@@ -26,12 +26,18 @@ class Operation {
 
 
         // And setters
-        // TODO
 
         // Other methods
-        // const char* computeHash();
 
+        /**
+         * Computes the hash of the operation,
+         * concatenating "WRITE;<OVERLAYKEY>;<timestamp>;<IP>"
+         */
         string cHash() const;
+
+        /**
+         * TODO Implement == operator for comparing two operations
+         */
 
     private:
         string op;

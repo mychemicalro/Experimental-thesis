@@ -14,7 +14,6 @@
 #include <InitStages.h>
 #include "Block.h"
 
-// class BaseOverlay;
 
 /**
  * This class must store a node's blockchain.
@@ -32,7 +31,7 @@ public:
     }
 
     // initialize parameters and data structure
-    virtual void initializeChain(const OverlayKey& ok);
+    virtual void initializeChain(const OverlayKey* ok);
 
     /**
      * Adds block to the blockchain
@@ -54,7 +53,8 @@ protected:
 
 private:
     vector<Block> blocks;
-    OverlayKey overlayk;
+    const OverlayKey* overlayk;
+    int blockchain_length; /* Blockchain length */
 
 };
 

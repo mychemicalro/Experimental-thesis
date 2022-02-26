@@ -33,7 +33,6 @@ class Block {
         Block( const Block& block );
         Block();
 
-        string computeHash();
 
         // Getters
         int getCapacity(){return capacity;}
@@ -42,14 +41,30 @@ class Block {
         size_t getBlockOpsNumber(){return operations.size();}
 
         //Setters
-        void addOperation(Operation& op);
         void setSeqNumber(int sn){seqNumber = sn;}
         void setViewNumber(int vn){viewNumber = vn;}
         void setPrevBlockHash(string h){prevBlockHash = h;}
 
         // Others
+        /**
+         * Returns true if the block has no more space for other operations.
+         */
         bool isFull();
+
+        /**
+         * Gets the block's operations
+         */
         vector<Operation> getOperations() const;
+
+        /**
+         * Adds an operation to the block
+         */
+        void addOperation(Operation& op);
+
+        /**
+         * Concats the hashes of all operations, then adds the previous block hash, then sha256 hash
+         */
+        string computeHash();
 
     private:
         string hash; // the block's hash
@@ -59,7 +74,7 @@ class Block {
         int seqNumber; // the sequence number assigned to this block by the primary
         int viewNumber; // view number
 
-        // The block must contain a list of capacity operations
+        // The block must contain a list of <capacity> operations
         vector<Operation> operations;
 
 };

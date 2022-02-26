@@ -53,6 +53,10 @@ class PBFT : public BaseApp {
      */
     bool isPrimary();
 
+    /**
+     * Send an UDP message only to my node
+     */
+    void sendToMyNode(cMessage* msg);
 
 public:
     PBFT() {
@@ -133,13 +137,6 @@ protected:
     Block* nextBlock;
     map<string,Block> candidateBlocks;
 
-    // A map containing, for each client, the latest reply.
-    // TODO
-    vector<PBFTReplyMessage> lastReplies;
-
-    bool S_PREPREPARE;
-    bool S_PREPARE;
-    bool S_COMMIT;
 
 };
 

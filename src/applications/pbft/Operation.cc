@@ -11,16 +11,11 @@
 
 Operation::Operation(OverlayKey ok, IPvXAddress ip, simtime_t ts){
     stringstream ss;
-    ss << "WRITE;" << ok.toString() << ";" << ts.str();
-
+    ss << "WRITE;" << ok.toString() << ";" << ts.str() << ";";
     op = ss.str();
-
     timestamp = ts;
     originator = make_pair(ok, ip);
     hash = cHash();
-
-    // EV << "op: " << op << " hash: " << hash << endl;
-
 }
 
 //copy constructor
@@ -42,8 +37,7 @@ Operation& Operation::getOp(){
 
 string Operation::cHash() const {
     stringstream ss;
-    ss << op << originator.first.toString() << originator.second.str();
-
+    ss << op << originator.second.str();
     return sha256(ss.str());
 }
 
