@@ -327,7 +327,7 @@ void PBFT::handleUDPMessage(cMessage* msg) {
 
             // Intermediate step!
             // This may be a retry from the client ...
-            if(replicaStateModule->requestHasReply(req)){
+            if(replicaStateModule->requestHasReply(req)){ // TODO How can I have a reply for a message I never saw?
 
                 PBFTReplyMessage* reply_msg = new PBFTReplyMessage("PBFTReplyMessage");
                 reply_msg->setView(replicaStateModule->getCurrentView());
@@ -455,7 +455,7 @@ void PBFT::handleUDPMessage(cMessage* msg) {
             vector<Operation> const & ops = req->getBlock().getOperations();
             for(size_t i=0; i<ops.size(); i++){
                 if(!replicaStateModule->digestInRequestsLog(ops.at(i).cHash().c_str())){
-                    // canPrepare = false;
+                    canPrepare = false;
                     if(DEBUG)
                         EV << "Operation: " << ops.at(i).cHash().c_str() << " not received by this node" << endl;
                 }
