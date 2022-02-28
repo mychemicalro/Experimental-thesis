@@ -330,4 +330,70 @@ bool ReplicaState::requestHasReply(PBFTRequestMessage* msg){
 }
 
 
+void ReplicaState::addCandidateBlock(PBFTPreprepareMessage* preprep){
+
+    candidateBlocks.insert(make_pair(preprep->getBlock().getHash(), preprep->getBlock()));
+
+    if(DEBUG)
+        EV << "Added a new candidate block." << endl;
+}
+
+bool ReplicaState::checkIfCanPrepare(PBFTRequestMessage* msg){ //I could get in input the request hash
+    if(DEBUG)
+        EV << "Check if there are new candidate blocks for which I can send a PREPARE message." << endl;
+
+    // find the block with this operation. If I have the block, check if I have all the operations locally. If yes, return true
+    bool canPrepare = false;
+    for(size_t i=0; i<preprepares.size(); i++){
+
+        if(preprepares.at(i).getBlock().containsOp(msg->getOp())){
+
+            canPrepare = true;
+            vector<Operation> const & ops = preprepares.at(i).getBlock().getOperations();
+
+            for(size_t i=0; i<ops.size(); i++){
+                if(!digestInRequestsLog(ops.at(i).cHash().c_str())){
+                    canPrepare = false;
+                    if(DEBUG)
+                        EV << "Operation: " << ops.at(i).cHash().c_str() << " not received by this node" << endl;
+                }
+            }
+        }
+    }
+    // TODO Per ora fa nulla se manderò ulteriori PREPREPARE ...dovrei fare il controllo che non ho già inviato PREPARE per questa richiesta
+    return canPrepare;
+}
+
+
+bool ReplicaState::isPresentCandidateBlock(PBFTCommitMessage* comm){
+
+    map<string, Block>::iterator it = candidateBlocks.find(comm->getDigest());
+
+    if (it != candidateBlocks.end()){
+        if(DEBUG)
+            EV << "Candidate block found" << endl;
+        return true;
+    }
+
+    EV << "Candidate block not found! " << endl;
+    return false;
+}
+
+map<string,Block> ReplicaState::getCandidateBlocks(){
+    return candidateBlocks;
+}
+
+Block& ReplicaState::getBlock(const char* digest){
+    map<string, Block>::iterator it = candidateBlocks.find(digest);
+    return it->second;
+}
+
+PBFTPreprepareMessage& ReplicaState::getPreprepareMessage(Operation& op){
+    for(size_t i=0; i<preprepares.size(); i++){
+        if(preprepares.at(i).getBlock().containsOp(op)){
+            return preprepares.at(i);
+        }
+    }
+}
+
 

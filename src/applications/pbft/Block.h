@@ -66,6 +66,8 @@ class Block {
          */
         string computeHash();
 
+        bool containsOp(Operation& op);
+
     private:
         string hash; // the block's hash
         string prevBlockHash; // the hash of the previous block appended in the blockchain

@@ -274,387 +274,25 @@ void PBFT::handleUDPMessage(cMessage* msg) {
 
 
     switch(myMsg->getType()){
-        case REQUEST: {
-            // Cast again the message to the needed format
-            PBFTRequestMessage* req = dynamic_cast<PBFTRequestMessage*>(myMsg);
-            if(DEBUG)
-                EV << "Received PBFTRequest at: " << thisNode.getIp() << " with digest: " << req->getOp().getHash() << endl;
-
-            // Check if request already seen
-            if (replicaStateModule->seenMessage(msg)){
-                if(DEBUG)
-                    EV << "Request already seen -- retryNumber: " << req->getRetryNumber() << endl;
-
-                // TODO Check if the request has already been processed. If yes, it should retransmit the reply.
-                // What about the gossiping?
-                // Replicas must remember the last reply message they sent to each client.
-
-                if(replicaStateModule->requestHasReply(req)){
-                    // broadcast reply (with an increased retryNumber)
-
-                    PBFTReplyMessage* reply_msg = new PBFTReplyMessage("PBFTReplyMessage");
-                    reply_msg->setView(replicaStateModule->getCurrentView());
-
-                    reply_msg->setOp(req->getOp());
-                    reply_msg->setReplicaNumber(this->overlay->getThisNode().getKey());
-                    reply_msg->setOperationResult(OK);
-
-                    reply_msg->setCreatorAddress(thisNode);
-                    reply_msg->setCreatorKey(overlay->getThisNode().getKey());
-                    reply_msg->setBitLength(PBFTREPLY(reply_msg));
-                    reply_msg->setRetryNumber(req->getRetryNumber());
-
-                    broadcast(reply_msg);
-
-                    if(DEBUG)
-                        EV << "Sending reply ... " << endl;
-
-                    delete reply_msg;
-
-                }
-
-                delete req;
-                return;
-            }
-
-            // TODO Discard requests with a lower timestamp than the last reply timestamp sent to this client -> exactly once semantics.
-
-            // Insert into log, save things like digest, sender, etc
-            replicaStateModule->addToRequestsLog(req);
-
-            // Gossip the request
-            broadcast(req);
-
-            // Intermediate step!
-            // This may be a retry from the client ...
-            if(replicaStateModule->requestHasReply(req)){ // TODO How can I have a reply for a message I never saw?
-
-                PBFTReplyMessage* reply_msg = new PBFTReplyMessage("PBFTReplyMessage");
-                reply_msg->setView(replicaStateModule->getCurrentView());
-
-                reply_msg->setOp(req->getOp());
-                reply_msg->setReplicaNumber(this->overlay->getThisNode().getKey());
-                reply_msg->setOperationResult(OK);
-
-                reply_msg->setCreatorAddress(thisNode);
-                reply_msg->setCreatorKey(overlay->getThisNode().getKey());
-                reply_msg->setBitLength(PBFTREPLY(reply_msg));
-                reply_msg->setRetryNumber(req->getRetryNumber());
-
-                broadcast(reply_msg);
-                if(DEBUG)
-                    EV << "Sending reply ... " << endl;
-
-                delete reply_msg;
-
-                // I need to end here
-                return;
-            }
-
-            // If I am the primary and if authentication is OK, assign sequence number and multicast PREPREPARE message
-            if (replicaStateModule->getPrimary()) {
-
-                nextBlock->addOperation(req->getOp());
-
-                if (nextBlock->isFull()){
-                    if(DEBUG)
-                        EV << "PRIMARY: Full block -> send PREPREPARE" << endl;
-
-                    // get ready to broadcast the preprepare
-                    sequenceNumber ++;
-                    nextBlock->setSeqNumber(sequenceNumber);
-                    nextBlock->setViewNumber(replicaStateModule->getCurrentView());
-                    nextBlock->setPrevBlockHash(chainModule->getLastBlockHash());
-
-                    PBFTPreprepareMessage* preprepare_msg = new PBFTPreprepareMessage("PBFTPreprepareMessage");
-                    preprepare_msg->setView(replicaStateModule->getCurrentView());
-                    preprepare_msg->setSeqNumber(sequenceNumber);
-                    preprepare_msg->setDigest(nextBlock->computeHash().c_str());
-                    preprepare_msg->setBlock(*nextBlock);
-
-                    preprepare_msg->setBitLength(PBFTPREPREPARE(preprepare_msg));
-                    broadcast(preprepare_msg);
-                    sendToMyNode(preprepare_msg);
-
-                    delete preprepare_msg;
-
-                    // clear nextBlock
-                    nextBlock = new Block(blockCapacity);
-                }
-            }
-
+        case REQUEST:
+            handleRequestMessage(msg);
             break;
-        }
 
-        case PREPREPARE: {
-            PBFTPreprepareMessage *req = dynamic_cast<PBFTPreprepareMessage*>(myMsg);
-
-            /**
-             * I have to reason with blocks now.
-             * A replica accepts this block if:
-             *      - it has same view
-             *      - message is authentic -> not controlled by us
-             *      - n between h and H
-             *      - the replica has not accepted a PRE-PREPARE block with
-             *          same view and seqNumber, but with different digest.
-             *
-             * Once accepted:
-             *      - enters the prepare phase
-             *      - adds m in its log !? TODO -> also the original message comes with the PREPREPARE message
-             *      - multicasts a PREPARE message
-             */
-
-            // Check if already processed this message?
-            if (replicaStateModule->seenMessage(req)){
-                if(DEBUG)
-                    EV << "Preprepare already seen - Preprepare not processed -- returning " << endl;
-
-                delete req;
-                return;
-            }
-
-            // I have to gossip it -> Gossip the request in any case? (Like different view, wrong seqNum) TODO
-            // If I am not the primary, I can broadcast it since the primary has already broadcasted the PREPREPARE
-
-            /*
-            if (!isPrimary()){
-                broadcast(req);
-            }
-            */
-            broadcast(req);
-
-            if (replicaStateModule->getCurrentView() != req->getView()){
-                if(DEBUG)
-                    EV << "Wrong view! - Preprepare not processed -- returning " << endl;
-                return;
-            }
-
-            if (req->getSeqNumber() < h || req->getSeqNumber() > H){
-                if(DEBUG)
-                    EV << "Wrong seqNumber! - Preprepare not processed -- returning " << endl;
-                return;
-            }
-
-            // If I'have already accepted a PREPREPARE message for the same v and seqNum but with different digest
-            if (replicaStateModule->otherPreprepareAccepted(req)){
-                if(DEBUG)
-                    EV << "Already accepted PREPREPARE message for seqNum: " << req->getSeqNumber() << " and view: " << req->getView() << endl;
-                return;
-            }
-
-            // Now the replica is ready to accept the PREPREPARE message
-            if(DEBUG)
-                EV << "Replica accepted a PREPREPARE block! " << endl;
-            replicaStateModule->addToPrepreparesLog(req);
-
-            // If the replica does not have the message in the log what happens? TODO
-
-            // Need to check if I have in my log all the operations contained in the block.
-            bool canPrepare = true;
-
-            vector<Operation> const & ops = req->getBlock().getOperations();
-            for(size_t i=0; i<ops.size(); i++){
-                if(!replicaStateModule->digestInRequestsLog(ops.at(i).cHash().c_str())){
-                    canPrepare = false;
-                    if(DEBUG)
-                        EV << "Operation: " << ops.at(i).cHash().c_str() << " not received by this node" << endl;
-                }
-            }
-
-            if (canPrepare){
-
-                // multicast a PREPARE message
-                if(DEBUG)
-                    EV << "Replica has to multicast a prepare message " << endl;
-
-                PBFTPrepareMessage* prepare_msg = new PBFTPrepareMessage("PBFTPrepareMessage");
-                prepare_msg->setView(replicaStateModule->getCurrentView());
-                prepare_msg->setSeqNumber(req->getSeqNumber());
-                prepare_msg->setDigest(req->getDigest());
-                prepare_msg->setCreatorAddress(thisNode);
-                prepare_msg->setCreatorKey(overlay->getThisNode().getKey());
-                prepare_msg->setBitLength(PBFTPREPARE(prepare_msg));
-
-                // broadcast(prepare_msg);
-                sendToMyNode(prepare_msg);
-                delete prepare_msg;
-
-                // Add the block to the candidateBlocks
-                candidateBlocks.insert(make_pair(req->getBlock().getHash(), req->getBlock()));
-            } else {
-                if(DEBUG)
-                    EV << "Node: " << thisNode.getIp() << " cannot prepare message" << endl;
-            }
-
+        case PREPREPARE:
+            handlePreprepareMessage(msg);
             break;
-        }
 
-        case PREPARE: {
-            PBFTPrepareMessage *req = dynamic_cast<PBFTPrepareMessage*>(myMsg);
-            if(DEBUG)
-                EV << "Received new PREPARE message " << endl;
-
-            if (replicaStateModule->seenMessage(req)){
-                if(DEBUG)
-                    EV << "Prepare already seen - Prepare not processed -- returning " << endl;
-                delete req;
-                return;
-            }
-
-            replicaStateModule->addToPreparesLog(req);
-
-            // Gossip the message If I see it for the first time, at any condition for now
-            broadcast(req);
-
-            if (replicaStateModule->searchPreparedCertificate(req)){
-                // PreparedCertificate found! --> send COMMIT
-
-                PBFTCommitMessage* commit_msg = new PBFTCommitMessage("PBFTCommitMessage");
-                commit_msg->setView(req->getView());
-                commit_msg->setSeqNumber(req->getSeqNumber());
-                commit_msg->setDigest(req->getDigest());
-                commit_msg->setCreatorAddress(thisNode);
-                commit_msg->setCreatorKey(overlay->getThisNode().getKey());
-                commit_msg->setBitLength(PBFTCOMMIT(commit_msg));
-
-                // broadcast(commit_msg);
-                sendToMyNode(commit_msg);
-
-                delete commit_msg;
-            }
-
+        case PREPARE:
+            handlePrepareMessage(msg);
             break;
-        }
 
-        case COMMIT: {
-            PBFTCommitMessage *req = dynamic_cast<PBFTCommitMessage*>(myMsg);
-            if(DEBUG)
-                EV << "Received new COMMIT message " << endl;
-            if (replicaStateModule->seenMessage(req)){
-                if(DEBUG)
-                    EV << "Commit already seen - Commit not processed -- returning " << endl;
-                delete req;
-                return;
-            }
-
-            replicaStateModule->addToCommitsLog(req);
-
-            // Gossip the message If I see it for the first time, and the request is not mine
-            broadcast(req);
-
-            if(replicaStateModule->searchCommittedCertificate(req)){
-
-                // I need to know the block I have to add to the blockchain.
-                EV << "Ready to commit" << endl;
-
-                map<string, Block>::iterator it = candidateBlocks.find(req->getDigest());
-                if (it != candidateBlocks.end()){
-                    if(DEBUG)
-                        EV << "Candidate block found" << endl;
-
-                    bool canExecute = true;
-                    // TODO add the block if all the blocks with a lower seqNumber were added. How? Are we sure about this?
-                    map<string, Block>::iterator cb;
-                    for(cb=candidateBlocks.begin(); cb!=candidateBlocks.end(); cb++){
-                        if (cb->second.getSeqNumber() < it->second.getSeqNumber()){
-                            if(!chainModule->isPresent(cb->second)){
-                                if(DEBUG)
-                                    EV << "Have to wait before executing this block ..." << endl;
-                                    EV << "The previous block: " << cb->second.getHash() << " with seqnum: " << cb->second.getSeqNumber() << " was not added to the blockchain" << endl;
-
-                                canExecute = false;
-                            }
-                        }
-                    }
-
-                    if(canExecute){
-                        // Ready to commit/execute
-                        chainModule->addBlock(it->second);
-
-                        /**
-                         * Attention please.
-                         * Since I have a block I have to reply to all the clients contained in the
-                         * block's operations.
-                         * For each operation in the block, get the operation and send the REPLY
-                         *
-                         */
-
-                        vector<Operation> const & ops = it->second.getOperations();
-                        for(size_t i=0; i<ops.size(); i++){
-
-                            // Send reply to client, How? as always, trying to broadcast the result ... or through an RPC call?
-                            PBFTReplyMessage* reply_msg = new PBFTReplyMessage("PBFTReplyMessage");
-                            reply_msg->setView(req->getView());
-
-                            reply_msg->setOp(ops.at(i));
-                            reply_msg->setReplicaNumber(this->overlay->getThisNode().getKey());
-                            reply_msg->setOperationResult(OK);
-
-                            reply_msg->setCreatorAddress(thisNode);
-                            reply_msg->setCreatorKey(overlay->getThisNode().getKey());
-                            reply_msg->setBitLength(PBFTREPLY(reply_msg));
-
-                            // TODO Remember this reply for the client, in case it's timer expires -> I have the replies vector.
-                            // Can check there if I already have replies to some request.
-
-                            broadcast(reply_msg);
-                            sendToMyNode(reply_msg);
-
-                            delete reply_msg;
-                        }
-                    }
-                } else {
-                    EV << "Candidate block not found! " << endl;
-
-                }
-            }
-
+        case COMMIT:
+            handleCommitMessage(msg);
             break;
-        }
 
-        case REPLY: {
-            PBFTReplyMessage *rep = dynamic_cast<PBFTReplyMessage*>(myMsg);
-
-            /**
-             * Check if I have already seen the message -> stop
-             * Add the message to the log and broadcast it.
-             * If I am the client, check for the weak certificate (reply certificate).
-             * If found, accept the reply.
-             */
-
-            if(replicaStateModule->seenMessage(rep)){
-                if(DEBUG)
-                    EV << "Reply already seen - Reply not processed -- returning " << endl;
-                delete rep;
-                return;
-            }
-
-            replicaStateModule->addToRepliesLog(rep);
-            broadcast(rep);
-
-            if(rep->getOp().getOriginatorKey() == this->overlay->getThisNode().getKey()){
-                if(DEBUG)
-                    EV << "Received a reply message from: " << rep->getReplicaNumber() << endl;
-
-                // The client waits for a weak certificate of f+1 replies. This will be called reply certificate.
-                if(replicaStateModule->searchReplyCertificate(rep)){
-                    EV << "Found reply certificate --> Accepted result: " << rep->getOperationResult() << endl;
-
-                    if(DEBUG)
-                        EV << "Request timestamp: " << rep->getOp().getTimestamp() << endl;
-                        EV << "Actual simtime: " << simTime() << endl;
-
-                    // Delete the replyTimer ...
-                    cancelEvent(replyTimer);
-
-                    // Create a new request
-                    scheduleAt(simTime() + requestDelay, clientTimer);
-
-                }
-            }
-
+        case REPLY:
+            handleReplyMessage(msg);
             break;
-        }
 
         default:
             error("handleUDPMessage(): Unknown message type!");
@@ -739,5 +377,424 @@ bool PBFT::isPrimary(){
 
     return false;
 }
+
+
+void PBFT::handleRequestMessage(cMessage* msg){
+
+    PBFTRequestMessage* req = dynamic_cast<PBFTRequestMessage*>(msg);
+
+    if(DEBUG)
+        EV << "Received PBFTRequest at: " << thisNode.getIp() << " with digest: " << req->getOp().getHash() << endl;
+
+    // Check if request already seen
+    if (replicaStateModule->seenMessage(msg)){
+        if(DEBUG)
+            EV << "Request already seen -- retryNumber: " << req->getRetryNumber() << endl;
+
+        // TODO Check if the request has already been processed. If yes, it should retransmit the reply.
+        // What about the gossiping?
+        // Replicas must remember the last reply message they sent to each client.
+
+        if(replicaStateModule->requestHasReply(req)){
+            // broadcast reply (with an increased retryNumber)
+
+            PBFTReplyMessage* reply_msg = new PBFTReplyMessage("PBFTReplyMessage");
+            reply_msg->setView(replicaStateModule->getCurrentView());
+
+            reply_msg->setOp(req->getOp());
+            reply_msg->setReplicaNumber(this->overlay->getThisNode().getKey());
+            reply_msg->setOperationResult(OK);
+
+            reply_msg->setCreatorAddress(thisNode);
+            reply_msg->setCreatorKey(overlay->getThisNode().getKey());
+            reply_msg->setBitLength(PBFTREPLY(reply_msg));
+            reply_msg->setRetryNumber(req->getRetryNumber());
+
+            broadcast(reply_msg);
+
+            if(DEBUG)
+                EV << "Sending reply ... " << endl;
+
+            delete reply_msg;
+
+        }
+
+        delete req;
+        return;
+    }
+
+    // TODO Discard requests with a lower timestamp than the last reply timestamp sent to this client -> exactly once semantics.
+
+    // Insert into log, save things like digest, sender, etc
+    replicaStateModule->addToRequestsLog(req);
+
+    // Gossip the request
+    broadcast(req);
+
+    // Intermediate step!
+    // This may be a retry from the client ...
+    if(replicaStateModule->requestHasReply(req)){ // TODO How can I have a reply for a message I never saw?
+
+        PBFTReplyMessage* reply_msg = new PBFTReplyMessage("PBFTReplyMessage");
+        reply_msg->setView(replicaStateModule->getCurrentView());
+
+        reply_msg->setOp(req->getOp());
+        reply_msg->setReplicaNumber(this->overlay->getThisNode().getKey());
+        reply_msg->setOperationResult(OK);
+
+        reply_msg->setCreatorAddress(thisNode);
+        reply_msg->setCreatorKey(overlay->getThisNode().getKey());
+        reply_msg->setBitLength(PBFTREPLY(reply_msg));
+        reply_msg->setRetryNumber(req->getRetryNumber());
+
+        broadcast(reply_msg);
+        if(DEBUG)
+            EV << "Sending reply ... " << endl;
+
+        delete reply_msg;
+
+        // I need to end here
+        return;
+    }
+
+    // If I am the primary and if authentication is OK, assign sequence number and multicast PREPREPARE message
+    if (replicaStateModule->getPrimary()) {
+
+        nextBlock->addOperation(req->getOp());
+
+        if (nextBlock->isFull()){
+            if(DEBUG)
+                EV << "PRIMARY: Full block -> send PREPREPARE" << endl;
+
+            // get ready to broadcast the preprepare
+            sequenceNumber ++;
+            nextBlock->setSeqNumber(sequenceNumber);
+            nextBlock->setViewNumber(replicaStateModule->getCurrentView());
+            nextBlock->setPrevBlockHash(chainModule->getLastBlockHash());
+
+            PBFTPreprepareMessage* preprepare_msg = new PBFTPreprepareMessage("PBFTPreprepareMessage");
+            preprepare_msg->setView(replicaStateModule->getCurrentView());
+            preprepare_msg->setSeqNumber(sequenceNumber);
+            preprepare_msg->setDigest(nextBlock->computeHash().c_str());
+            preprepare_msg->setBlock(*nextBlock);
+
+            preprepare_msg->setBitLength(PBFTPREPREPARE(preprepare_msg));
+            broadcast(preprepare_msg);
+            sendToMyNode(preprepare_msg);
+
+            delete preprepare_msg;
+
+            // clear nextBlock
+            nextBlock = new Block(blockCapacity);
+        }
+    }
+
+    onDemandPrePrepare(req);
+}
+
+
+void PBFT::handlePreprepareMessage(cMessage* msg){
+
+    PBFTPreprepareMessage *preprep = dynamic_cast<PBFTPreprepareMessage*>(msg);
+
+    /**
+     * I have to reason with blocks now.
+     * A replica accepts this block if:
+     *      - it has same view
+     *      - message is authentic -> not controlled by us
+     *      - n between h and H
+     *      - the replica has not accepted a PRE-PREPARE block with
+     *          same view and seqNumber, but with different digest.
+     *
+     * Once accepted:
+     *      - enters the prepare phase
+     *      - adds m in its log !? TODO -> also the original message comes with the PREPREPARE message
+     *      - multicasts a PREPARE message
+     */
+
+    // Check if already processed this message?
+    if (replicaStateModule->seenMessage(preprep)){
+        if(DEBUG)
+            EV << "Preprepare already seen - Preprepare not processed -- returning " << endl;
+
+        delete preprep;
+        return;
+    }
+
+    // I have to gossip it -> Gossip the preprepuest in any case? (Like different view, wrong seqNum) TODO
+    // If I am not the primary, I can broadcast it since the primary has already broadcasted the PREPREPARE
+
+
+    broadcast(preprep);
+
+    if (replicaStateModule->getCurrentView() != preprep->getView()){
+        if(DEBUG)
+            EV << "Wrong view! - Preprepare not processed -- returning " << endl;
+        return;
+    }
+
+    if (preprep->getSeqNumber() < h || preprep->getSeqNumber() > H){
+        if(DEBUG)
+            EV << "Wrong seqNumber! - Preprepare not processed -- returning " << endl;
+        return;
+    }
+
+    // If I'have already accepted a PREPREPARE message for the same v and seqNum but with different digest
+    if (replicaStateModule->otherPreprepareAccepted(preprep)){
+        if(DEBUG)
+            EV << "Already accepted PREPREPARE message for seqNum: " << preprep->getSeqNumber() << " and view: " << preprep->getView() << endl;
+        return;
+    }
+
+    // Now the replica is ready to accept the PREPREPARE message
+    if(DEBUG)
+        EV << "Replica accepted a PREPREPARE block! " << endl;
+    replicaStateModule->addToPrepreparesLog(preprep);
+
+    // If the replica does not have the message in the log what happens? TODO
+
+    // Need to check if I have in my log all the operations contained in the block.
+    bool canPrepare = true;
+
+    vector<Operation> const & ops = preprep->getBlock().getOperations();
+    for(size_t i=0; i<ops.size(); i++){
+        if(!replicaStateModule->digestInRequestsLog(ops.at(i).cHash().c_str())){
+            canPrepare = false;
+            if(DEBUG)
+                EV << "Operation: " << ops.at(i).cHash().c_str() << " not received by this node" << endl;
+        }
+    }
+
+    if (canPrepare){
+
+        // multicast a PREPARE message
+        if(DEBUG)
+            EV << "Replica has to multicast a prepare message " << endl;
+
+        PBFTPrepareMessage* prepare_msg = new PBFTPrepareMessage("PBFTPrepareMessage");
+        prepare_msg->setView(replicaStateModule->getCurrentView());
+        prepare_msg->setSeqNumber(preprep->getSeqNumber());
+        prepare_msg->setDigest(preprep->getDigest());
+        prepare_msg->setCreatorAddress(thisNode);
+        prepare_msg->setCreatorKey(overlay->getThisNode().getKey());
+        prepare_msg->setBitLength(PBFTPREPARE(prepare_msg));
+
+        // broadcast(prepare_msg);
+        sendToMyNode(prepare_msg);
+        delete prepare_msg;
+
+        // Add the block to the candidateBlocks
+        // candidateBlocks.insert(make_pair(preprep->getBlock().getHash(), preprep->getBlock()));
+        replicaStateModule->addCandidateBlock(preprep);
+
+    } else {
+        if(DEBUG)
+            EV << "Node: " << thisNode.getIp() << " cannot prepare message" << endl;
+    }
+}
+
+void PBFT::handlePrepareMessage(cMessage* msg){
+    PBFTPrepareMessage* prep = dynamic_cast<PBFTPrepareMessage*>(msg);
+
+    if(DEBUG)
+        EV << "Received new PREPARE message " << endl;
+
+    if (replicaStateModule->seenMessage(prep)){
+        if(DEBUG)
+            EV << "Prepare already seen - Prepare not processed -- returning " << endl;
+        delete prep;
+        return;
+    }
+
+    replicaStateModule->addToPreparesLog(prep);
+
+    // Gossip the message If I see it for the first time, at any condition for now
+    broadcast(prep);
+
+    if (replicaStateModule->searchPreparedCertificate(prep)){
+        // PreparedCertificate found! --> send COMMIT
+
+        PBFTCommitMessage* commit_msg = new PBFTCommitMessage("PBFTCommitMessage");
+        commit_msg->setView(prep->getView());
+        commit_msg->setSeqNumber(prep->getSeqNumber());
+        commit_msg->setDigest(prep->getDigest());
+        commit_msg->setCreatorAddress(thisNode);
+        commit_msg->setCreatorKey(overlay->getThisNode().getKey());
+        commit_msg->setBitLength(PBFTCOMMIT(commit_msg));
+
+        // broadcast(commit_msg);
+        sendToMyNode(commit_msg);
+
+        delete commit_msg;
+    }
+}
+
+
+
+void PBFT::handleCommitMessage(cMessage* msg){
+    PBFTCommitMessage* comm = dynamic_cast<PBFTCommitMessage*>(msg);
+    if(DEBUG)
+        EV << "Received new COMMIT message " << endl;
+
+    if (replicaStateModule->seenMessage(comm)){
+        if(DEBUG)
+            EV << "Commit already seen - Commit not processed -- returning " << endl;
+        delete comm;
+        return;
+    }
+
+    replicaStateModule->addToCommitsLog(comm);
+
+    // Gossip the message If I see it for the first time, and the request is not mine
+    broadcast(comm);
+
+    if(replicaStateModule->searchCommittedCertificate(comm)){
+
+        // I need to know the block I have to add to the blockchain.
+        EV << "Ready to commit" << endl;
+
+        if(replicaStateModule->isPresentCandidateBlock(comm)){
+
+            // get block
+            Block myBlock = replicaStateModule->getBlock(comm->getDigest());
+
+            bool canExecute = true;
+            // TODO add the block if all the blocks with a lower seqNumber were added. How? Are we sure about this?
+
+            map<string, Block> candidateBlocks = replicaStateModule->getCandidateBlocks();
+            map<string, Block>::iterator cb;
+
+            for(cb=candidateBlocks.begin(); cb!=candidateBlocks.end(); cb++){
+                if (cb->second.getSeqNumber() < myBlock.getSeqNumber()){
+
+                    if(!chainModule->isPresent(cb->second)){
+                        if(DEBUG)
+                            EV << "Have to wait before executing this block ..." << endl;
+                            EV << "The previous block: " << cb->second.getHash() << " with seqnum: " << cb->second.getSeqNumber() << " was not added to the blockchain" << endl;
+
+                        canExecute = false;
+                        break;
+                    }
+                }
+            }
+
+            if(canExecute){
+                // Ready to commit/execute
+                chainModule->addBlock(myBlock);
+
+                /**
+                 * Attention please.
+                 * Since I have a block I have to reply to all the clients contained in the
+                 * block's operations.
+                 * For each operation in the block, get the operation and send the REPLY
+                 *
+                 */
+
+                vector<Operation> const & ops = myBlock.getOperations();
+                for(size_t i=0; i<ops.size(); i++){
+
+                    // Send reply to client, How? as always, trying to broadcast the result ... or through an RPC call?
+                    PBFTReplyMessage* reply_msg = new PBFTReplyMessage("PBFTReplyMessage");
+                    reply_msg->setView(comm->getView());
+
+                    reply_msg->setOp(ops.at(i));
+                    reply_msg->setReplicaNumber(this->overlay->getThisNode().getKey());
+                    reply_msg->setOperationResult(OK);
+
+                    reply_msg->setCreatorAddress(thisNode);
+                    reply_msg->setCreatorKey(overlay->getThisNode().getKey());
+                    reply_msg->setBitLength(PBFTREPLY(reply_msg));
+
+                    // TODO Remember this reply for the client, in case it's timer expires -> I have the replies vector.
+                    // Can check there if I already have replies to some request.
+
+                    broadcast(reply_msg);
+                    sendToMyNode(reply_msg);
+
+                    delete reply_msg;
+                }
+            }
+        } else {
+            EV << "Candidate block not found! " << endl;
+        }
+    }
+}
+
+
+
+void PBFT::handleReplyMessage(cMessage* msg){
+    PBFTReplyMessage *rep = dynamic_cast<PBFTReplyMessage*>(msg);
+
+    /**
+     * Check if I have already seen the message -> stop
+     * Add the message to the log and broadcast it.
+     * If I am the client, check for the weak certificate (reply certificate).
+     * If found, accept the reply.
+     */
+
+    if(replicaStateModule->seenMessage(rep)){
+        if(DEBUG)
+            EV << "Reply already seen - Reply not processed -- returning " << endl;
+        delete rep;
+        return;
+    }
+
+    replicaStateModule->addToRepliesLog(rep);
+    broadcast(rep);
+
+    if(rep->getOp().getOriginatorKey() == this->overlay->getThisNode().getKey()){
+        if(DEBUG)
+            EV << "Received a reply message from: " << rep->getReplicaNumber() << endl;
+
+        // The client waits for a weak certificate of f+1 replies. This will be called reply certificate.
+        if(replicaStateModule->searchReplyCertificate(rep)){
+            EV << "Found reply certificate --> Accepted result: " << rep->getOperationResult() << endl;
+
+            if(DEBUG)
+                EV << "Request timestamp: " << rep->getOp().getTimestamp() << endl;
+                EV << "Actual simtime: " << simTime() << endl;
+
+            // Delete the replyTimer ...
+            cancelEvent(replyTimer);
+
+            // Create a new request
+            scheduleAt(simTime() + requestDelay, clientTimer);
+
+        }
+    }
+}
+
+void PBFT::onDemandPrePrepare(PBFTRequestMessage* req){
+    if(DEBUG)
+        EV << "[PBFT::onDemandPrePrepare() @ " << thisNode.getIp()
+           << endl;
+
+    if(!replicaStateModule->checkIfCanPrepare(req)){
+        return;
+    }
+
+    if(DEBUG)
+        EV << "Replica has to multicast a prepare message " << endl;
+
+    // Retrieve the preprepare
+    PBFTPreprepareMessage preprep = replicaStateModule->getPreprepareMessage(req->getOp());
+
+    PBFTPrepareMessage* prepare_msg = new PBFTPrepareMessage("PBFTPrepareMessage");
+    prepare_msg->setView(replicaStateModule->getCurrentView());
+    prepare_msg->setSeqNumber(preprep.getSeqNumber());
+    prepare_msg->setDigest(preprep.getDigest());
+    prepare_msg->setCreatorAddress(thisNode);
+    prepare_msg->setCreatorKey(overlay->getThisNode().getKey());
+    prepare_msg->setBitLength(PBFTPREPARE(prepare_msg));
+
+    // broadcast(prepare_msg);
+    sendToMyNode(prepare_msg);
+    delete prepare_msg;
+
+    replicaStateModule->addCandidateBlock(&preprep);
+
+}
+
+
 
 

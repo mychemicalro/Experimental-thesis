@@ -75,3 +75,12 @@ Block::Block( const Block& block ){
     prevBlockHash = block.prevBlockHash;
     operations = block.operations;
 }
+
+bool Block::containsOp(Operation& op){
+    for(size_t i=0; i<operations.size(); i++){
+        if(op.getHash() == operations.at(i).getHash()){
+            return true;
+        }
+    }
+    return false;
+}

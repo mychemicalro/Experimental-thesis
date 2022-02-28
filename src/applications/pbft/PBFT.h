@@ -111,11 +111,20 @@ public:
      */
     void initializeFriendModules();
 
-    /**
-     * Adds a reply to the lastReplies vector if there is not a message with
-     * same client and greater timestamp
-     */
-    void addToLastReplies(PBFTReplyMessage& reply_msg);
+    void handleRequestMessage(cMessage* msg);
+
+
+    void handlePrepareMessage(cMessage* msg);
+
+    void handlePreprepareMessage(cMessage* msg);
+
+
+    void handleCommitMessage(cMessage* msg);
+
+    void handleReplyMessage(cMessage* msg);
+
+
+    void onDemandPrePrepare(PBFTRequestMessage* req);
 
 
 protected:
@@ -135,8 +144,6 @@ protected:
 
     int blockCapacity;
     Block* nextBlock;
-    map<string,Block> candidateBlocks;
-
 
 };
 

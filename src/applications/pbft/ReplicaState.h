@@ -104,6 +104,25 @@ public:
      */
     bool requestHasReply(PBFTRequestMessage* msg);
 
+    /**
+     * Procedure that check if a replica can send a PREPARE message.
+     * Checks all the existing preprepares it received, and if the block can be prepared
+     * and the block is not among the candidates, the block becomes a candidate
+     */
+    bool checkIfCanPrepare(PBFTRequestMessage* msg);
+
+    void addCandidateBlock(PBFTPreprepareMessage* preprep);
+
+
+    bool isPresentCandidateBlock(PBFTCommitMessage* comm);
+
+
+    map<string,Block> getCandidateBlocks();
+
+    Block& getBlock(const char* digest);
+
+    PBFTPreprepareMessage& getPreprepareMessage(Operation& op);
+
 
 protected:
 
@@ -121,6 +140,8 @@ private:
     std::vector<PBFTReplyMessage> replies;
 
     const OverlayKey* overlayk;
+
+    map<string,Block> candidateBlocks;
 
 };
 
