@@ -569,7 +569,7 @@ void PBFT::handlePreprepareMessage(cMessage* msg){
 
         // multicast a PREPARE message
         if(DEBUG)
-            EV << "Replica has to multicast a prepare message " << endl;
+            EV << "Replica has to multicast a prepare message for block (inside handle): " << preprep->getBlock().getHash() << endl;
 
         PBFTPrepareMessage* prepare_msg = new PBFTPrepareMessage("PBFTPrepareMessage");
         prepare_msg->setView(replicaStateModule->getCurrentView());
@@ -614,6 +614,13 @@ void PBFT::handlePrepareMessage(cMessage* msg){
     if (replicaStateModule->searchPreparedCertificate(prep)){
         // PreparedCertificate found! --> send COMMIT
 
+        // get block
+        Block myBlock = replicaStateModule->getBlock(prep->getDigest());
+        if(chainModule->isPresent(myBlock)){
+            EV << "Block: " << myBlock.getHash() << " already present in this blockchain" << endl;
+            return;
+        }
+
         PBFTCommitMessage* commit_msg = new PBFTCommitMessage("PBFTCommitMessage");
         commit_msg->setView(prep->getView());
         commit_msg->setSeqNumber(prep->getSeqNumber());
@@ -624,7 +631,6 @@ void PBFT::handlePrepareMessage(cMessage* msg){
 
         // broadcast(commit_msg);
         sendToMyNode(commit_msg);
-
         delete commit_msg;
     }
 }
@@ -655,8 +661,14 @@ void PBFT::handleCommitMessage(cMessage* msg){
 
         if(replicaStateModule->isPresentCandidateBlock(comm)){
 
+
             // get block
             Block myBlock = replicaStateModule->getBlock(comm->getDigest());
+
+            if(chainModule->isPresent(myBlock)){
+                EV << "Block: " << myBlock.getHash() << " already present in this blockchain" << endl;
+                return;
+            }
 
             bool canExecute = true;
             // TODO add the block if all the blocks with a lower seqNumber were added. How? Are we sure about this?
@@ -773,8 +785,6 @@ void PBFT::onDemandPrePrepare(PBFTRequestMessage* req){
         return;
     }
 
-    if(DEBUG)
-        EV << "Replica has to multicast a prepare message " << endl;
 
     // Retrieve the preprepare
     PBFTPreprepareMessage preprep = replicaStateModule->getPreprepareMessage(req->getOp());
@@ -792,6 +802,9 @@ void PBFT::onDemandPrePrepare(PBFTRequestMessage* req){
     delete prepare_msg;
 
     replicaStateModule->addCandidateBlock(&preprep);
+
+    if(DEBUG)
+        EV << "Replica has to multicast a prepare message for block: " << preprep.getBlock().getHash() << endl;
 
 }
 

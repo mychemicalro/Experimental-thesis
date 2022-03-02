@@ -231,7 +231,7 @@ bool ReplicaState::searchPreparedCertificate(PBFTPrepareMessage* m){
         }
     }
 
-    if (prepare_c == 2*f && preprepare_c == 1){ // TODO exact match on prepare_c, maybe ge than 2f?
+    if (prepare_c >= 2*f && preprepare_c == 1){ // TODO exact match on prepare_c, maybe ge than 2f?
         // If exact match, then only once this call will return true, helping to have less COMMIT messages in the network!?
         EV << "Found Prepared Certificate! " << endl;
         return true;
@@ -264,7 +264,7 @@ bool ReplicaState::searchCommittedCertificate(PBFTCommitMessage* m){
         }
     }
 
-    if (commits_c == 2*f +1 && minePresent){ // TODO exact match on commits_c, maybe ge than 2f?
+    if (commits_c >= 2*f +1 && minePresent){ // TODO exact match on commits_c, maybe ge than 2f?
         EV << "Found Committed Certificate! block hash: " << m->getDigest() << endl;
         return true;
     }
@@ -331,11 +331,15 @@ bool ReplicaState::requestHasReply(PBFTRequestMessage* msg){
 
 
 void ReplicaState::addCandidateBlock(PBFTPreprepareMessage* preprep){
+    if(DEBUG)
+        EV << "candidates block length: " << candidateBlocks.size() << endl;
 
     candidateBlocks.insert(make_pair(preprep->getBlock().getHash(), preprep->getBlock()));
 
-    if(DEBUG)
+    if(DEBUG){
         EV << "Added a new candidate block." << endl;
+        EV << "candidates block length: " << candidateBlocks.size() << endl;
+    }
 }
 
 bool ReplicaState::checkIfCanPrepare(PBFTRequestMessage* msg){ //I could get in input the request hash
