@@ -362,7 +362,8 @@ void Scamp::handleHeartbeatTimerExpired(cMessage* msg){
     for(int i=0; i<(int)partialViewModule->getSize(); i++){
         NodeHandle dest = partialViewModule->getMember(i);
         ScampMessage* heartbeat = new ScampMessage("Heartbeat");
-        if (isLeaf()){
+
+        if (isLeaf() && 1==0){ // TODO
             heartbeat->setCommand(HEARTBEAT_FROM_LEAF);
             if(DEBUG)
                 EV << "Sent HEARTBEAT_FROM_LEAF" << endl;
@@ -419,7 +420,9 @@ void Scamp::handlePruneInViewTimerExpired(cMessage* msg){
 
         changeState(DISCONNECTED);
 
-    } else if (partialViewModule->isEmpty()){
+    }
+
+    /* else if (partialViewModule->isEmpty()){
         // Connect to a random node from my inView
         if(DEBUG)
             EV << "Empty partialView -> Join some node from the inView"
@@ -436,7 +439,7 @@ void Scamp::handlePruneInViewTimerExpired(cMessage* msg){
         partialViewModule->addMember(nodes[0]);
         showOverlayNeighborArrow(nodes[0], false, "m=m,50,0,50,0;ls=red,1");
 
-    }
+    }*/ // TODO
 }
 
 void Scamp::rpcJoin(ScampJoinCall* joinCall) {
