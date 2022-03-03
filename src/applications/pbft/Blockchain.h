@@ -51,6 +51,17 @@ public:
 
 protected:
 
+    /**
+     * The module will save some data about its actual blockchain, like:
+     * - length
+     * - last hash
+     * - number of operations included
+     * - list of all hashes
+     *
+     * Data will be saved on an external file?
+     */
+    virtual void finish();
+
 private:
     vector<Block> blocks;
     const OverlayKey* overlayk;

@@ -64,6 +64,14 @@ string Blockchain::getLastBlockHash(){
 }
 
 
+void Blockchain::finish(){
+    if(DEBUG)
+        EV << "[Blockchain::finish() @ " << *overlayk
+        << " length: " << blockchain_length
+        << " last hash: " << getLastBlockHash()
+        << endl;
+
+}
 
 
 

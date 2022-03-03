@@ -762,9 +762,14 @@ void PBFT::handleReplyMessage(cMessage* msg){
         if(replicaStateModule->searchReplyCertificate(rep)){
             EV << "Found reply certificate --> Accepted result: " << rep->getOperationResult() << endl;
 
-            if(DEBUG)
+            if(DEBUG){
                 EV << "Request timestamp: " << rep->getOp().getTimestamp() << endl;
                 EV << "Actual simtime: " << simTime() << endl;
+                EV << "Latency: " << simTime() - rep->getOp().getTimestamp() << endl;
+            }
+
+            // TODO
+            globalStatistics->addStdDev("PBFT: Latency", (simTime() - rep->getOp().getTimestamp()).dbl());
 
             // Delete the replyTimer ...
             cancelEvent(replyTimer);
