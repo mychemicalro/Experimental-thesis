@@ -66,6 +66,7 @@ private:
     vector<Block> blocks;
     const OverlayKey* overlayk;
     int blockchain_length; /* Blockchain length */
+    int operations_number; /* Number of ops stored in the blockchain*/
 
 };
 

@@ -123,6 +123,10 @@ public:
 
     PBFTPreprepareMessage& getPreprepareMessage(Operation& op);
 
+    void addTimestamp(PBFTPreprepareMessage* preprep);
+
+    double getTimestamp(string digest);
+
 
 protected:
 
@@ -142,6 +146,7 @@ private:
     const OverlayKey* overlayk;
 
     map<string,Block> candidateBlocks;
+    map<string,double> timestamps;
 
 };
 

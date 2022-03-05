@@ -15,7 +15,7 @@
 
 // To convert between IP addresses (which have bit 24 active), and keys (which don't), we'll need to set or remove this bit.
 #define BIGBIT (1 << 24)
-#define DEBUG true
+#define DEBUG false
 
 // Important! This line must be present for each module you extend (see BaseApp)
 Define_Module(Scamp);

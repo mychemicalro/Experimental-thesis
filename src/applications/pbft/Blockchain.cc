@@ -36,6 +36,7 @@ void Blockchain::initializeChain(const OverlayKey* ok) {
 void Blockchain::addBlock(Block& b){
     blocks.push_back(b);
     blockchain_length ++;
+    operations_number += b.getOperations().size();
 
     if(DEBUG){
         EV << "Added new block at node: " << *overlayk << " with digest:" << b.getHash() << endl;
@@ -69,6 +70,7 @@ void Blockchain::finish(){
         EV << "[Blockchain::finish() @ " << *overlayk
         << " length: " << blockchain_length
         << " last hash: " << getLastBlockHash()
+        << " ops: " << operations_number
         << endl;
 
 }

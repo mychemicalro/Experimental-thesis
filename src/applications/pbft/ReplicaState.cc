@@ -342,6 +342,18 @@ void ReplicaState::addCandidateBlock(PBFTPreprepareMessage* preprep){
     }
 }
 
+void ReplicaState::addTimestamp(PBFTPreprepareMessage* preprep){
+    timestamps.insert(make_pair(preprep->getBlock().getHash(), simTime().dbl()));
+}
+
+double ReplicaState::getTimestamp(string digest){
+    if(DEBUG)
+        EV << "Get timestamp for digest: " << digest << endl;
+
+    map<string, double>::iterator it = timestamps.find(digest);
+    return it->second;
+}
+
 bool ReplicaState::checkIfCanPrepare(PBFTRequestMessage* msg){ //I could get in input the request hash
     if(DEBUG)
         EV << "Check if there are new candidate blocks for which I can send a PREPARE message." << endl;

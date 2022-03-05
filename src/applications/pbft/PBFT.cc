@@ -299,7 +299,7 @@ void PBFT::handleUDPMessage(cMessage* msg) {
             break;
     }
 
-    delete msg;
+    // delete msg;
 }
 
 void PBFT::update(const NodeHandle& node, bool joined){
@@ -363,6 +363,13 @@ void PBFT::finishApp() {
 
     globalStatistics->addStdDev("PBFT: Sent packets", numSent);
     globalStatistics->addStdDev("PBFT: Received packets", numReceived);
+
+
+    if(nodeType == REPLICAANDCLIENT){
+        EV << "Node is client: " << this->overlay->getThisNode().getKey() << endl;
+        globalStatistics->recordHistogram("PBFT: Number of clients", 1);
+    }
+
 }
 
 bool PBFT::isPrimary(){
@@ -548,8 +555,9 @@ void PBFT::handlePreprepareMessage(cMessage* msg){
 
     // Now the replica is ready to accept the PREPREPARE message
     if(DEBUG)
-        EV << "Replica accepted a PREPREPARE block! " << endl;
+        EV << "Replica accepted a PREPREPARE block!" << endl;
     replicaStateModule->addToPrepreparesLog(preprep);
+    replicaStateModule->addTimestamp(preprep);
 
     // If the replica does not have the message in the log what happens? TODO
 
@@ -693,6 +701,9 @@ void PBFT::handleCommitMessage(cMessage* msg){
             if(canExecute){
                 // Ready to commit/execute
                 chainModule->addBlock(myBlock);
+                double insertionTimestamp = replicaStateModule->getTimestamp(myBlock.getHash());
+                globalStatistics->addStdDev("PBFT: Blocks latency", (simTime().dbl() - insertionTimestamp));
+
 
                 /**
                  * Attention please.
@@ -733,7 +744,6 @@ void PBFT::handleCommitMessage(cMessage* msg){
 }
 
 
-
 void PBFT::handleReplyMessage(cMessage* msg){
     PBFTReplyMessage *rep = dynamic_cast<PBFTReplyMessage*>(msg);
 
@@ -769,7 +779,7 @@ void PBFT::handleReplyMessage(cMessage* msg){
             }
 
             // TODO
-            globalStatistics->addStdDev("PBFT: Latency", (simTime() - rep->getOp().getTimestamp()).dbl());
+            globalStatistics->addStdDev("PBFT: Requests latency", (simTime().dbl() - rep->getOp().getTimestamp()).dbl());
 
             // Delete the replyTimer ...
             cancelEvent(replyTimer);
