@@ -123,9 +123,6 @@ bool ReplicaState::seenMessage(cMessage* msg){
         PBFTRequestMessage *myMsg = dynamic_cast<PBFTRequestMessage*>(msg);
 
         for(size_t i=0; i<requests.size(); i++){
-            // EV << "input hash: " << myMsg->getOp().getHash() << " requests hash: " << requests.at(i).getOp().getHash() << endl;
-            // Check the hash
-            // strcmp(requests.at(i).getOp().getHash(), myMsg->getOp().getHash()) == 0
             if (requests.at(i).getOp().getHash() == myMsg->getOp().getHash()){
                 if (requests.at(i).getRetryNumber() == myMsg->getRetryNumber()){
                     if(DEBUG)
@@ -231,7 +228,7 @@ bool ReplicaState::searchPreparedCertificate(PBFTPrepareMessage* m){
         }
     }
 
-    if (prepare_c >= 2*f && preprepare_c == 1){ // TODO exact match on prepare_c, maybe ge than 2f?
+    if (prepare_c >= 2*f && preprepare_c > 0){ // TODO exact match on prepare_c, maybe ge than 2f?
         // If exact match, then only once this call will return true, helping to have less COMMIT messages in the network!?
         EV << "Found Prepared Certificate! " << endl;
         return true;
@@ -367,16 +364,16 @@ bool ReplicaState::checkIfCanPrepare(PBFTRequestMessage* msg){ //I could get in 
             canPrepare = true;
             vector<Operation> const & ops = preprepares.at(i).getBlock().getOperations();
 
-            for(size_t i=0; i<ops.size(); i++){
-                if(!digestInRequestsLog(ops.at(i).cHash().c_str())){
+            for(size_t j=0; j<ops.size(); j++){
+                if(!digestInRequestsLog(ops.at(j).cHash().c_str())){
                     canPrepare = false;
                     if(DEBUG)
-                        EV << "Operation: " << ops.at(i).cHash().c_str() << " not received by this node" << endl;
+                        EV << "Operation: " << ops.at(j).cHash().c_str() << " not received by this node" << endl;
                 }
             }
         }
     }
-    // TODO Per ora fa nulla se manderò ulteriori PREPREPARE ...dovrei fare il controllo che non ho già inviato PREPARE per questa richiesta
+
     return canPrepare;
 }
 
@@ -412,4 +409,28 @@ PBFTPreprepareMessage& ReplicaState::getPreprepareMessage(Operation& op){
     }
 }
 
+bool ReplicaState::operationPrepPrepared(Operation& op){
+    for(size_t i=0; i<preprepares.size(); i++){
+        vector<Operation> const & ops = preprepares.at(i).getBlock().getOperations();
+
+        for(size_t j=0; j<ops.size(); j++){
+            if(ops.at(j).getHash() == op.getHash()){
+                EV << "Operation already preprepared" << endl;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+vector<PBFTCommitMessage> ReplicaState::getCommitMessages(int sn){
+    vector<PBFTCommitMessage> res;
+    for(size_t i=0; i<commits.size(); i++){
+        if(commits.at(i).getSeqNumber() > sn){
+            PBFTCommitMessage cm = commits.at(i);
+            res.push_back(cm);
+        }
+    }
+    return res;
+}
 

@@ -126,6 +126,10 @@ public:
 
     void onDemandPrePrepare(PBFTRequestMessage* req);
 
+    void onDemandPrepare(PBFTPreprepareMessage* req);
+
+    void onDemandCommit(int sn);
+
 
 protected:
     // Class attributes

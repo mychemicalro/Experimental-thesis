@@ -38,15 +38,9 @@ void Block::addOperation(Operation& op){
     if(DEBUG)
         EV << "Trying to add operation: " << op.getHash() << " to block: " << this->hash << endl;
 
-    for(size_t i=0; i<operations.size(); i++){
-        if(operations.at(i).getHash() == op.getHash()){
-            EV << "Operation not added" << endl;
-            return;
-        }
+    if(!containsOp(op)){
+        operations.push_back(op);
     }
-
-    operations.push_back(op);
-
 }
 
 bool Block::isFull(){

@@ -127,6 +127,12 @@ public:
 
     double getTimestamp(string digest);
 
+    /**
+     * Returns true if the operation was already included in a PREPREPARE block.
+     */
+    bool operationPrepPrepared(Operation& op);
+
+    vector<PBFTCommitMessage> getCommitMessages(int sn);
 
 protected:
 

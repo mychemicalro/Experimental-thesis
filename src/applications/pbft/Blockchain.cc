@@ -6,7 +6,7 @@
  */
 
 
-#define DEBUG true
+#define DEBUG false
 #include "Blockchain.h"
 
 using namespace std;
@@ -29,22 +29,25 @@ void Blockchain::initializeChain(const OverlayKey* ok) {
 
     this->overlayk = ok;
     blockchain_length = 0;
+    operations_number = 0;
 
     WATCH(blockchain_length);
+    WATCH(operations_number);
 }
 
 void Blockchain::addBlock(Block& b){
     blocks.push_back(b);
     blockchain_length ++;
-    operations_number += b.getOperations().size();
+    operations_number += b.getCapacity();
 
     if(DEBUG){
         EV << "Added new block at node: " << *overlayk << " with digest:" << b.getHash() << endl;
-
+/*
         vector<Operation> const & ops = b.getOperations();
         for(size_t i=0; i<ops.size(); i++){
             EV << "Operation hash: " << ops.at(i).cHash() << endl;
         }
+*/
         EV << "New blockchain length: " << blocks.size() << endl;
     }
 }
@@ -66,12 +69,12 @@ string Blockchain::getLastBlockHash(){
 
 
 void Blockchain::finish(){
-    if(DEBUG)
-        EV << "[Blockchain::finish() @ " << *overlayk
-        << " length: " << blockchain_length
-        << " last hash: " << getLastBlockHash()
-        << " ops: " << operations_number
-        << endl;
+
+    EV << "[Blockchain::finish() @ " << *overlayk
+    << " length: " << blockchain_length
+    << " last hash: " << getLastBlockHash()
+    << " ops: " << operations_number
+    << endl;
 
 }
 
