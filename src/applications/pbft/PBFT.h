@@ -123,10 +123,7 @@ public:
 
     void handleReplyMessage(cMessage* msg);
 
-
     void onDemandPrePrepare(PBFTRequestMessage* req);
-
-    void onDemandPrepare(PBFTPreprepareMessage* req);
 
     void onDemandCommit(int sn);
 

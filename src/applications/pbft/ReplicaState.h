@@ -142,7 +142,6 @@ private:
     bool primary; /* this replica is primary*/
     int f;
 
-    // TODO Message log
     std::vector<PBFTRequestMessage> requests;
     std::vector<PBFTPreprepareMessage> preprepares;
     std::vector<PBFTPrepareMessage> prepares;

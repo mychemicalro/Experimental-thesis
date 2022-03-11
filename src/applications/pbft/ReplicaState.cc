@@ -32,6 +32,10 @@ void ReplicaState::initializeState(const OverlayKey* ok) {
     requests.clear();
     preprepares.clear();
     prepares.clear();
+    commits.clear();
+    candidateBlocks.clear();
+    timestamps.clear();
+
     f = par("f");
 
     this->overlayk = ok;
@@ -359,7 +363,7 @@ bool ReplicaState::checkIfCanPrepare(PBFTRequestMessage* msg){ //I could get in 
     bool canPrepare = false;
     for(size_t i=0; i<preprepares.size(); i++){
 
-        if(preprepares.at(i).getBlock().containsOp(msg->getOp())){
+        if(operationPrepPrepared(msg->getOp())){
 
             canPrepare = true;
             vector<Operation> const & ops = preprepares.at(i).getBlock().getOperations();
@@ -387,8 +391,9 @@ bool ReplicaState::isPresentCandidateBlock(PBFTCommitMessage* comm){
             EV << "Candidate block found" << endl;
         return true;
     }
+    if(DEBUG)
+        EV << "Candidate block not found! " << endl;
 
-    EV << "Candidate block not found! " << endl;
     return false;
 }
 
@@ -401,24 +406,34 @@ Block& ReplicaState::getBlock(const char* digest){
     return it->second;
 }
 
+
 PBFTPreprepareMessage& ReplicaState::getPreprepareMessage(Operation& op){
+    // If I do not have the preprepare? Safe because I check first if I have a block with the operation.
     for(size_t i=0; i<preprepares.size(); i++){
         if(preprepares.at(i).getBlock().containsOp(op)){
             return preprepares.at(i);
         }
     }
+
 }
 
 bool ReplicaState::operationPrepPrepared(Operation& op){
     for(size_t i=0; i<preprepares.size(); i++){
+
+        if(preprepares.at(i).getBlock().containsOp(op)){
+            return true;
+        }
+
+        /*
         vector<Operation> const & ops = preprepares.at(i).getBlock().getOperations();
 
         for(size_t j=0; j<ops.size(); j++){
             if(ops.at(j).getHash() == op.getHash()){
-                EV << "Operation already preprepared" << endl;
+                if(DEBUG)
+                    EV << "Operation already preprepared" << endl;
                 return true;
             }
-        }
+        }*/
     }
     return false;
 }
@@ -427,8 +442,8 @@ vector<PBFTCommitMessage> ReplicaState::getCommitMessages(int sn){
     vector<PBFTCommitMessage> res;
     for(size_t i=0; i<commits.size(); i++){
         if(commits.at(i).getSeqNumber() > sn){
-            PBFTCommitMessage cm = commits.at(i);
-            res.push_back(cm);
+            // PBFTCommitMessage cm = commits.at(i);
+            res.push_back(commits.at(i));
         }
     }
     return res;

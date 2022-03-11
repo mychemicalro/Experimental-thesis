@@ -503,7 +503,7 @@ void PBFT::handleRequestMessage(cMessage* msg){
         }
     }
 
-    onDemandPrePrepare(req);
+    onDemandPrePrepare(req); // TODO To call in any case ..? In case I accept this request.
 }
 
 
@@ -599,15 +599,14 @@ void PBFT::handlePreprepareMessage(cMessage* msg){
         delete prepare_msg;
 
         // Add the block to the candidateBlocks
-        // candidateBlocks.insert(make_pair(preprep->getBlock().getHash(), preprep->getBlock()));
         replicaStateModule->addCandidateBlock(preprep);
+
 
     } else {
         if(DEBUG)
             EV << "Node: " << thisNode.getIp() << " cannot prepare message" << endl;
     }
 
-    // onDemandPrepare(preprep);
 }
 
 void PBFT::handlePrepareMessage(cMessage* msg){
@@ -625,7 +624,7 @@ void PBFT::handlePrepareMessage(cMessage* msg){
 
     replicaStateModule->addToPreparesLog(prep);
 
-    // Gossip the message If I see it for the first time, at any condition for now
+    // Gossip the message since I see it for the first time, at any condition for now
     broadcast(prep);
 
     if (replicaStateModule->searchPreparedCertificate(prep)){
@@ -792,8 +791,10 @@ void PBFT::handleReplyMessage(cMessage* msg){
             // Delete the replyTimer ...
             cancelEvent(replyTimer);
 
-            // Create a new request
-            scheduleAt(simTime() + requestDelay, clientTimer);
+            // Create a new request -> maybe I will do it soon
+            // scheduleAt(simTime() + requestDelay, clientTimer);
+            scheduleAt(simTime(), clientTimer);
+
         }
 
     } else {
@@ -811,8 +812,14 @@ void PBFT::onDemandPrePrepare(PBFTRequestMessage* req){
         return;
     }
 
+/*
+    // Retrieve the preprepare, if exists. Maybe useless call, this is always true if the if before is true.
+    if(!replicaStateModule->operationPrepPrepared(req->getOp())){
+        if(DEBUG)
+            EV << "Replica has not yet received a preprepare message for this operation. " << endl;
+    }
+*/
 
-    // Retrieve the preprepare
     PBFTPreprepareMessage preprep = replicaStateModule->getPreprepareMessage(req->getOp());
 
     PBFTPrepareMessage* prepare_msg = new PBFTPrepareMessage("PBFTPrepareMessage");
@@ -834,43 +841,6 @@ void PBFT::onDemandPrePrepare(PBFTRequestMessage* req){
 
 }
 
-
-void PBFT::onDemandPrepare(PBFTPreprepareMessage* preprep){
-    if(DEBUG)
-        EV << "[PBFT::onDemandPrepare() @ " << thisNode.getIp()
-           << endl;
-
-
-    /**
-     * I might have received a PREPREPARE message that allows me to find the prepared certificate.
-     * So I need to look for it.
-     */
-/*
-
-    // Fare un metodo custom che prendere digest, view e seqnumber
-    if (replicaStateModule->searchPreparedCertificate(prep)){
-
-        // get block
-        Block myBlock = replicaStateModule->getBlock(prep->getDigest());
-        if(chainModule->isPresent(myBlock)){
-            EV << "Block: " << myBlock.getHash() << " already present in this blockchain" << endl;
-            return;
-        }
-
-        PBFTCommitMessage* commit_msg = new PBFTCommitMessage("PBFTCommitMessage");
-        commit_msg->setView(prep->getView());
-        commit_msg->setSeqNumber(prep->getSeqNumber());
-        commit_msg->setDigest(prep->getDigest());
-        commit_msg->setCreatorAddress(thisNode);
-        commit_msg->setCreatorKey(overlay->getThisNode().getKey());
-        commit_msg->setBitLength(PBFTCOMMIT(commit_msg));
-
-        // broadcast(commit_msg);
-        sendToMyNode(commit_msg);
-        delete commit_msg;
-    }
-    */
-}
 
 void PBFT::onDemandCommit(int sn){
     if(DEBUG)
