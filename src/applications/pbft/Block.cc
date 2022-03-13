@@ -14,6 +14,7 @@
 Block::Block(int c){
     capacity = c;
     seqNumber = 0;
+    creationTimestamp = simTime().dbl();
 }
 
 Block::Block(){}
@@ -68,6 +69,7 @@ Block::Block( const Block& block ){
     hash = block.hash;
     prevBlockHash = block.prevBlockHash;
     operations = block.operations;
+    creationTimestamp = block.creationTimestamp;
 }
 
 bool Block::containsOp(Operation& op){

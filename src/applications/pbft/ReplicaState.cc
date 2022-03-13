@@ -449,3 +449,15 @@ vector<PBFTCommitMessage> ReplicaState::getCommitMessages(int sn){
     return res;
 }
 
+void ReplicaState::clearDataStructures(){
+
+    requests.clear();
+    preprepares.clear();
+    prepares.clear();
+    commits.clear();
+    replies.clear();
+    candidateBlocks.clear();
+    timestamps.clear();
+
+}
+

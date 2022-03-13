@@ -33,6 +33,8 @@ void Blockchain::initializeChain(const OverlayKey* ok) {
 
     WATCH(blockchain_length);
     WATCH(operations_number);
+
+    globalStatistics = GlobalStatisticsAccess().get();
 }
 
 void Blockchain::addBlock(Block& b){
@@ -70,11 +72,17 @@ string Blockchain::getLastBlockHash(){
 
 void Blockchain::finish(){
 
-    EV << "[Blockchain::finish() @ " << *overlayk
-    << " length: " << blockchain_length
-    << " last hash: " << getLastBlockHash()
-    << " ops: " << operations_number
-    << endl;
+    if(DEBUG)
+        EV << "[Blockchain::finish() @ " << *overlayk
+        << " length: " << blockchain_length
+        << " last hash: " << getLastBlockHash()
+        << " ops: " << operations_number
+        << endl;
+
+    // globalStatistics->recordHistogram("Blockchain: Number of clients", 1);
+
+    globalStatistics->addStdDev("Blockchain: length", blockchain_length);
+    globalStatistics->addStdDev("Blockchain: operations", operations_number);
 
 }
 

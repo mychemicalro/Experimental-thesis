@@ -82,6 +82,13 @@ void Scamp::initializeOverlay(int stage) {
     // statistics
     totalHeartbeatsSent = 0;
     heartbeatsSentLastPeriod = 0;
+    numSent = 0;
+    numReceived = 0;
+    numSent_ADDEDTOPARTIALVIEW = 0;
+    numSent_JOINREQUESTFORWARDED = 0;
+    numSent_REMOVE_ME = 0;
+    numSent_REPLACE_ME = 0;
+    numSent_NEW_NODE = 0;
 
     // watch variables
     WATCH(bootstrapNode);
@@ -92,6 +99,9 @@ void Scamp::initializeOverlay(int stage) {
     WATCH(heartbeatsSentLastPeriod);
     WATCH(useCwhenLeaving);
     WATCH(leasing);
+    WATCH(numSent);
+    WATCH(numReceived);
+
 }
 
 // Called to set our own overlay key (optional)
@@ -330,6 +340,7 @@ void Scamp::handleJoinTimerExpired(cMessage* msg) {
     call->setAddress(thisNode.getIp());
     call->setBitLength(JOINCALL_L(call));
 
+
     RoutingType routingType = (defaultRoutingType == FULL_RECURSIVE_ROUTING ||
                                defaultRoutingType == RECURSIVE_SOURCE_ROUTING) ?
                               SEMI_RECURSIVE_ROUTING : defaultRoutingType;
@@ -362,6 +373,7 @@ void Scamp::handleHeartbeatTimerExpired(cMessage* msg){
     for(int i=0; i<(int)partialViewModule->getSize(); i++){
         NodeHandle dest = partialViewModule->getMember(i);
         ScampMessage* heartbeat = new ScampMessage("Heartbeat");
+        heartbeat->setBitLength(SCAMP_MESSAGE_L(heartbeat));
 
         if (isLeaf() && 1==0){ // TODO
             heartbeat->setCommand(HEARTBEAT_FROM_LEAF);
@@ -375,6 +387,7 @@ void Scamp::handleHeartbeatTimerExpired(cMessage* msg){
         heartbeat->setNode(thisNode);
         // notify it about this
         sendMessageToUDP(dest, heartbeat);
+        numSent++;
 
         totalHeartbeatsSent++;
         heartbeatsSentLastPeriod++;
@@ -463,18 +476,21 @@ void Scamp::rpcJoin(ScampJoinCall* joinCall) {
     int i;
     for(i=0; i<(int)nodes.size(); i++){
         NewNodeMessage* message = new NewNodeMessage("NewNodeMessage");
+        message->setBitLength(NEW_NODE_L(message));
         message->setCommand(NEW_NODE);
         message->setNode(requester);
         // notify it about this
         sendMessageToUDP(nodes.at(i), message);
+        numSent++;
+        numSent_NEW_NODE++;
     }
 
     seenNodesModule->addMember(requester);
 
     // Log the join message
-    outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
-    outfile << joinCall->getAddress() << ";JOIN_CALL;" << simTime() << ";" << thisNode.getIp() << "\n";
-    outfile.close();
+    // outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
+    // outfile << joinCall->getAddress() << ";JOIN_CALL;" << simTime() << ";" << thisNode.getIp() << "\n";
+    // outfile.close();
 
     ScampJoinResponse* joinResponse = new ScampJoinResponse("JoinResponse");
 
@@ -526,12 +542,15 @@ void Scamp::forwardJoinRequest(NodeHandle sender, NodeHandle requester, int step
 
         for(std::vector<NodeHandle>::iterator it = nodes.begin(); it != nodes.end(); ++it) {
             ForwardMessage* message = new ForwardMessage("ForwardMessage");
+            message->setBitLength(FORWARD_MESSAGE_L(message));
             message->setSteps(steps);
             message->setCommand(JOINREQUESTFORWARDED);
             message->setNode(requester);
             message->setSourceNode(thisNode);
             // notify it about this
             sendMessageToUDP(*it, message);
+            numSent++;
+            numSent_JOINREQUESTFORWARDED++;
         }
     }
 }
@@ -581,9 +600,9 @@ void Scamp::handleRpcJoinResponse(ScampJoinResponse* joinResponse) {
            << endl;
     NodeHandle responder = joinResponse->getSrcNode();
 
-    outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
-    outfile << thisNode.getIp() << ";JOIN_RESPONSE;" << simTime() << ";" << responder.getIp() <<"\n";
-    outfile.close();
+    // outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
+    // outfile << thisNode.getIp() << ";JOIN_RESPONSE;" << simTime() << ";" << responder.getIp() <<"\n";
+    // outfile.close();
 
     // Handle the response from my bootstrapNode
     if(bootstrapNode.getIp() != thisNode.getIp() && bootstrapNode.getIp() == joinResponse->getSrcNode().getIp()){
@@ -605,15 +624,18 @@ void Scamp::handleRpcJoinResponse(ScampJoinResponse* joinResponse) {
 
                 showOverlayNeighborArrow(joinResponse->getSrcNode(), false, "m=m,50,0,50,0;ls=red,1");
 
-                outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
-                outfile << thisNode.getIp() << ";ADDEDTOPARTIALVIEW;" << simTime() << ";" << joinResponse->getSrcNode().getIp() << "\n";
-                outfile.close();
+                // outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
+                // outfile << thisNode.getIp() << ";ADDEDTOPARTIALVIEW;" << simTime() << ";" << joinResponse->getSrcNode().getIp() << "\n";
+                // outfile.close();
 
                 ScampMessage* message = new ScampMessage("ScampMessage");
+                message->setBitLength(SCAMP_MESSAGE_L(message));
                 message->setCommand(ADDEDTOPARTIALVIEW);
                 message->setNode(thisNode);
                 // notify it about this
                 sendMessageToUDP(joinResponse->getSrcNode(), message);
+                numSent++;
+                numSent_ADDEDTOPARTIALVIEW++;
 
             }
             if (joinResponse->getCommand() == JOINREQUESTACCEPTED){
@@ -647,6 +669,18 @@ void Scamp::finishOverlay() {
 
     // statistics that are aggregated
     // recordScalar("SCAMP: Total number of heartbeats sent", totalHeartbeatsSent);
+
+    globalStatistics->addStdDev("SCAMP: Sent packets", numSent);
+    globalStatistics->addStdDev("SCAMP: Received packets", numReceived);
+    globalStatistics->addStdDev("SCAMP: Sent ADDEDTOPARTIALVIEW packets", numSent_ADDEDTOPARTIALVIEW);
+    globalStatistics->addStdDev("SCAMP: Sent JOINREQUESTFORWARDED packets", numSent_JOINREQUESTFORWARDED);
+    globalStatistics->addStdDev("SCAMP: Sent REMOVE_ME packets", numSent_REMOVE_ME);
+    globalStatistics->addStdDev("SCAMP: Sent REPLACE_ME packets", numSent_REPLACE_ME);
+    globalStatistics->addStdDev("SCAMP: Sent NEW_NODE packets", numSent_NEW_NODE);
+
+    // TODO Add some more statistics?
+    // globalStatistics->recordHistogram("SCAMP: Total number of sent packets", numSent);
+
 }
 
 // Return the max amount of siblings that can be queried about
@@ -676,6 +710,8 @@ void Scamp::initializeFriendModules(){
 
 void Scamp::handleUDPMessage(BaseOverlayMessage* msg){
 
+    numReceived++;
+
     ScampMessage* m = check_and_cast<ScampMessage*>(msg);
     if(DEBUG)
         EV << "[Scamp::handleUDPMessage() @ " << thisNode.getIp()
@@ -701,9 +737,9 @@ void Scamp::handleUDPMessage(BaseOverlayMessage* msg){
         case JOINREQUESTFORWARDED:{
             ForwardMessage* fm = check_and_cast<ForwardMessage*>(m);
 
-            outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
-            outfile << fm->getNode().getIp() << ";JOINREQUESTFORWARDED;" << simTime() << ";" << thisNode.getIp() << "\n";
-            outfile.close();
+            // outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
+            // outfile << fm->getNode().getIp() << ";JOINREQUESTFORWARDED;" << simTime() << ";" << thisNode.getIp() << "\n";
+            // outfile.close();
 
             handleForwardedJoinRequest(fm);
             break;
@@ -716,9 +752,9 @@ void Scamp::handleUDPMessage(BaseOverlayMessage* msg){
         case REMOVE_ME:{
             LeaveMessage* lm = check_and_cast<LeaveMessage*>(m);
 
-            outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
-            outfile << lm->getNode().getIp() << ";REMOVE_ME;" << simTime() << ";" << thisNode.getIp() << "\n";
-            outfile.close();
+            // outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
+            // outfile << lm->getNode().getIp() << ";REMOVE_ME;" << simTime() << ";" << thisNode.getIp() << "\n";
+            // outfile.close();
 
             handleRemoveMeMessage(lm);
             break;
@@ -727,9 +763,9 @@ void Scamp::handleUDPMessage(BaseOverlayMessage* msg){
         case REPLACE_ME:{
             LeaveMessage* lm = check_and_cast<LeaveMessage*>(m);
 
-            outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
-            outfile << lm->getNode().getIp() << ";REPLACE_ME;" << simTime() << ";" << thisNode.getIp() << "\n";
-            outfile.close();
+            // outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
+            // outfile << lm->getNode().getIp() << ";REPLACE_ME;" << simTime() << ";" << thisNode.getIp() << "\n";
+            // outfile.close();
 
             handleReplaceMeMessage(lm);
             break;
@@ -738,9 +774,9 @@ void Scamp::handleUDPMessage(BaseOverlayMessage* msg){
         case NEW_NODE:{
             NewNodeMessage* nnm = check_and_cast<NewNodeMessage*>(m);
 
-            outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
-            outfile << nnm->getNode().getIp() << ";NEW_NODE;" << simTime() << ";" << thisNode.getIp() << "\n";
-            outfile.close();
+            // outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
+            // outfile << nnm->getNode().getIp() << ";NEW_NODE;" << simTime() << ";" << thisNode.getIp() << "\n";
+            // outfile.close();
 
             seenNodesModule->addMember(nnm->getNode());
             delete nnm;
@@ -784,15 +820,18 @@ void Scamp::handleForwardedJoinRequest(ForwardMessage* m){
     if (requester.getIp() != thisNode.getIp() && partialViewModule->addMember(requester)){
         // send accepted to the requester
 
-        outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
-        outfile << requester.getIp() << ";ADDEDTOPARTIALVIEW;" << simTime() << ";" << thisNode.getIp() << "\n";
-        outfile.close();
+        // outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
+        // outfile << requester.getIp() << ";ADDEDTOPARTIALVIEW;" << simTime() << ";" << thisNode.getIp() << "\n";
+        // outfile.close();
 
         ScampMessage* message = new ScampMessage("ScampMessage");
+        message->setBitLength(SCAMP_MESSAGE_L(message));
         message->setCommand(ADDEDTOPARTIALVIEW);
         message->setNode(thisNode);
         // notify it about this
         sendMessageToUDP(requester, message);
+        numSent++;
+        numSent_ADDEDTOPARTIALVIEW++;
 
         //showOverlayNeighborArrow(requester);
         showOverlayNeighborArrow(requester, false, "m=m,50,0,50,0;ls=red,1");
@@ -852,11 +891,15 @@ void Scamp::handleHeartbeatMessage(ScampMessage* m){
                     } else {
                         std::vector<NodeHandle> node = inViewModule->getRandomNodesExcept(m->getNode(), 1);
                         ScampMessage* message = new ScampMessage("ScampMessage");
+                        message->setBitLength(SCAMP_MESSAGE_L(message));
                         message->setCommand(ADDEDTOPARTIALVIEW);
                         message->setNode(thisNode);
 
                         // notify it about this
                         sendMessageToUDP(node[0], message);
+                        numSent++;
+                        numSent_ADDEDTOPARTIALVIEW++;
+
                         partialViewModule->addMember(node[0]);
                         showOverlayNeighborArrow(node[0], false, "m=m,50,0,50,0;ls=red,1");
                         if (DEBUG)
@@ -893,11 +936,14 @@ void Scamp::gracefulLeave(){
             int j;
             for(j=0; j<in; j++){
                 LeaveMessage* lm = new LeaveMessage("LeaveMessage");
+                lm->setBitLength(LEAVE_MESSAGE_L(lm));
                 lm->setCommand(REMOVE_ME);
                 lm->setNode(thisNode);
                 lm->setNewNode(NodeHandle::UNSPECIFIED_NODE);
 
                 sendMessageToUDP(inNodes.at(j), lm);
+                numSent++;
+                numSent_REMOVE_ME++;
             }
 
         } else {
@@ -906,20 +952,26 @@ void Scamp::gracefulLeave(){
             for(i=0; i<m; i++ ){
                 // notify node that it has to replace me
                 LeaveMessage* lm = new LeaveMessage("LeaveMessage");
+                lm->setBitLength(LEAVE_MESSAGE_L(lm));
                 lm->setCommand(REPLACE_ME);
                 lm->setNode(thisNode);
                 lm->setNewNode(outNodes.at(i));
 
                 sendMessageToUDP(inNodes.at(i), lm);
+                numSent++;
+                numSent_REPLACE_ME++;
             }
 
             for(i=m; i<in; i++ ){
                 LeaveMessage* lm = new LeaveMessage("LeaveMessage");
+                lm->setBitLength(LEAVE_MESSAGE_L(lm));
                 lm->setCommand(REMOVE_ME);
                 lm->setNode(thisNode);
                 lm->setNewNode(NodeHandle::UNSPECIFIED_NODE);
 
                 sendMessageToUDP(inNodes.at(i), lm);
+                numSent++;
+                numSent_REMOVE_ME++;
             }
         }
     }
@@ -936,21 +988,27 @@ void Scamp::gracefulLeave(){
         for(i=0; i<m; i++ ){
             // notify node that it has to replace me
             LeaveMessage* lm = new LeaveMessage("LeaveMessage");
+            lm->setBitLength(LEAVE_MESSAGE_L(lm));
             lm->setCommand(REPLACE_ME);
             lm->setNode(thisNode);
             lm->setNewNode(outNodes.at(i));
 
             sendMessageToUDP(inNodes.at(i), lm);
+            numSent++;
+            numSent_REPLACE_ME++;
         }
 
         // send REMOVE_ME to the inView nodes exceeding the partialView nodes
         for(i=m; i<in; i++){
             LeaveMessage* lm = new LeaveMessage("LeaveMessage");
+            lm->setBitLength(LEAVE_MESSAGE_L(lm));
             lm->setCommand(REMOVE_ME);
             lm->setNode(thisNode);
             lm->setNewNode(NodeHandle::UNSPECIFIED_NODE);
 
             sendMessageToUDP(inNodes.at(i), lm);
+            numSent++;
+            numSent_REMOVE_ME++;
         }
     }
 }
@@ -969,9 +1027,9 @@ void Scamp::handleNodeGracefulLeaveNotification(){
            << "    Leaving gracefully "
            << endl;
 
-    outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
-    outfile << thisNode.getIp() << ";LEAVE;" << simTime() << ";" << thisNode.getIp() << "\n";
-    outfile.close();
+    // outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
+    // outfile << thisNode.getIp() << ";LEAVE;" << simTime() << ";" << thisNode.getIp() << "\n";
+    // outfile.close();
 
     // notify others
     gracefulLeave();
@@ -1040,16 +1098,19 @@ void Scamp::handleReplaceMeMessage(LeaveMessage* m){
         if(partialViewModule->addMember(m->getNewNode(), true)){
             showOverlayNeighborArrow(m->getNewNode(), false, "m=m,50,0,50,0;ls=red,1");
 
-            outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
-            outfile << m->getNode().getIp() << ";ADDEDTOPARTIALVIEW_REPLACEMENT;" << simTime() << ";" << m->getNewNode().getIp() << "\n";
-            outfile.close();
+            // outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
+            // outfile << m->getNode().getIp() << ";ADDEDTOPARTIALVIEW_REPLACEMENT;" << simTime() << ";" << m->getNewNode().getIp() << "\n";
+            // outfile.close();
 
             ScampMessage* message = new ScampMessage("ScampMessage");
+            message->setBitLength(SCAMP_MESSAGE_L(message));
             message->setCommand(ADDEDTOPARTIALVIEW);
             message->setNode(thisNode);
 
             // notify it about this
             sendMessageToUDP(m->getNewNode(), message);
+            numSent++;
+            numSent_ADDEDTOPARTIALVIEW++;
         }
     }
 

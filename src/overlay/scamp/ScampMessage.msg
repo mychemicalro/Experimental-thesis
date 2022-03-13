@@ -9,17 +9,17 @@ cplusplus {{
 #include <OverlayKey.h>
 
 // constants for message length in bit
-static const int CHORDCOMMAND_L = 8;
-static const int SUCNUM_L = 8;
-static const int FINGER_L = 8;
+static const int SCAMPCOMMAND_L = 4;
 static const int STEP_L = 8;
-static const int PRENODESET_L = 1;
+static const int SIMTIME_L = 4;
 
-// TODO need to understand these macros
-#define JOINCALL_L(msg) BASECALL_L(msg)
-#define JOINRESPONSE_L(msg) (BASERESPONSE_L(msg) + SUCNUM_L + NODEHANDLE_L + ( NODEHANDLE_L))
+#define JOINCALL_L(msg) (BASECALL_L(msg) + IPADDR_L + SIMTIME_L)
+#define JOINRESPONSE_L(msg) (BASERESPONSE_L(msg) + SCAMPCOMMAND_L)
 
-
+#define SCAMP_MESSAGE_L(msg) (BASECALL_L(msg) + SCAMPCOMMAND_L + NODEHANDLE_L)
+#define FORWARD_MESSAGE_L(msg) (SCAMP_MESSAGE_L(msg) + STEP_L + NODEHANDLE_L)
+#define LEAVE_MESSAGE_L(msg) (SCAMP_MESSAGE_L(msg) + NODEHANDLE_L)
+#define NEW_NODE_L(msg) (SCAMP_MESSAGE_L(msg))
 
 }}
 

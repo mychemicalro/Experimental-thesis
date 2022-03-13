@@ -13,6 +13,7 @@
 #include <map>
 #include <InitStages.h>
 #include "Block.h"
+#include "GlobalStatisticsAccess.h"
 
 
 /**
@@ -67,6 +68,8 @@ private:
     const OverlayKey* overlayk;
     int blockchain_length; /* Blockchain length */
     int operations_number; /* Number of ops stored in the blockchain*/
+
+    GlobalStatistics* globalStatistics;
 
 };
 

@@ -134,6 +134,8 @@ public:
 
     vector<PBFTCommitMessage> getCommitMessages(int sn);
 
+    void clearDataStructures();
+
 protected:
 
 private:

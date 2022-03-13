@@ -39,6 +39,7 @@ class Block {
         string getHash(){return hash;}
         int getSeqNumber(){return seqNumber;}
         size_t getBlockOpsNumber(){return operations.size();}
+        double getCreationTimestamp(){return creationTimestamp;}
 
         //Setters
         void setSeqNumber(int sn){seqNumber = sn;}
@@ -75,6 +76,8 @@ class Block {
         int capacity; // the block's max capacity
         int seqNumber; // the sequence number assigned to this block by the primary
         int viewNumber; // view number
+
+        double creationTimestamp;
 
         // The block must contain a list of <capacity> operations
         vector<Operation> operations;

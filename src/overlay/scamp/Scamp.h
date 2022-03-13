@@ -119,6 +119,14 @@ class Scamp : public BaseOverlay {
     // cOutVector joinCallsReceived;
     int totalHeartbeatsSent;
     int heartbeatsSentLastPeriod;
+    int numSent;              //number of packets sent
+    int numSent_ADDEDTOPARTIALVIEW;
+    int numSent_JOINREQUESTFORWARDED;
+    int numSent_REMOVE_ME;
+    int numSent_REPLACE_ME;
+    int numSent_NEW_NODE;
+
+    int numReceived;          //number of packets received
 
     std::ofstream outfile;
 

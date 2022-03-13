@@ -371,6 +371,10 @@ void PBFT::finishApp() {
         EV << "Node is client: " << this->overlay->getThisNode().getKey() << endl;
         globalStatistics->recordHistogram("PBFT: Number of clients", 1);
     }
+    replicaStateModule->clearDataStructures();
+
+    if(nodeType == REPLICAANDCLIENT)
+        delete actualRequest;
 
 }
 
@@ -709,7 +713,9 @@ void PBFT::handleCommitMessage(cMessage* msg){
                 h++;
                 H++;
                 double insertionTimestamp = replicaStateModule->getTimestamp(myBlock.getHash());
-                globalStatistics->addStdDev("PBFT: Blocks latency", (simTime().dbl() - insertionTimestamp));
+                double insertionTimestamp2 = myBlock.getCreationTimestamp();
+                globalStatistics->addStdDev("PBFT: Blocks latency (when received)", (simTime().dbl() - insertionTimestamp));
+                globalStatistics->addStdDev("PBFT: Blocks latency (when created)", (simTime().dbl() - insertionTimestamp2));
 
                 /**
                  * Attention please.
@@ -790,6 +796,8 @@ void PBFT::handleReplyMessage(cMessage* msg){
 
             // Delete the replyTimer ...
             cancelEvent(replyTimer);
+
+            delete actualRequest;
 
             // Create a new request -> maybe I will do it soon
             // scheduleAt(simTime() + requestDelay, clientTimer);
