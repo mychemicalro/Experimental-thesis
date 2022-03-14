@@ -38,6 +38,7 @@ EXECUTE_ON_STARTUP(
     e->insert(PREPARE, "PREPARE");
     e->insert(COMMIT, "COMMIT");
     e->insert(REPLY, "REPLY");
+    e->insert(CHECKPOINT, "CHECKPOINT");
 );
 
 Register_Class(PBFTMessage);
@@ -1732,6 +1733,265 @@ void *PBFTReplyMessageDescriptor::getFieldStructPointer(void *object, int field,
     switch (field) {
         case 1: return (void *)(&pp->getReplicaNumber()); break;
         case 3: return (void *)(&pp->getOp()); break;
+        default: return NULL;
+    }
+}
+
+Register_Class(PBFTCheckpointMessage);
+
+PBFTCheckpointMessage::PBFTCheckpointMessage(const char *name, int kind) : PBFTMessage(name,kind)
+{
+    this->setType(CHECKPOINT);
+
+    this->seqNumber_var = 0;
+    this->digest_var = 0;
+}
+
+PBFTCheckpointMessage::PBFTCheckpointMessage(const PBFTCheckpointMessage& other) : PBFTMessage(other)
+{
+    copy(other);
+}
+
+PBFTCheckpointMessage::~PBFTCheckpointMessage()
+{
+}
+
+PBFTCheckpointMessage& PBFTCheckpointMessage::operator=(const PBFTCheckpointMessage& other)
+{
+    if (this==&other) return *this;
+    PBFTMessage::operator=(other);
+    copy(other);
+    return *this;
+}
+
+void PBFTCheckpointMessage::copy(const PBFTCheckpointMessage& other)
+{
+    this->seqNumber_var = other.seqNumber_var;
+    this->digest_var = other.digest_var;
+}
+
+void PBFTCheckpointMessage::parsimPack(cCommBuffer *b)
+{
+    PBFTMessage::parsimPack(b);
+    doPacking(b,this->seqNumber_var);
+    doPacking(b,this->digest_var);
+}
+
+void PBFTCheckpointMessage::parsimUnpack(cCommBuffer *b)
+{
+    PBFTMessage::parsimUnpack(b);
+    doUnpacking(b,this->seqNumber_var);
+    doUnpacking(b,this->digest_var);
+}
+
+int PBFTCheckpointMessage::getSeqNumber() const
+{
+    return seqNumber_var;
+}
+
+void PBFTCheckpointMessage::setSeqNumber(int seqNumber)
+{
+    this->seqNumber_var = seqNumber;
+}
+
+const char * PBFTCheckpointMessage::getDigest() const
+{
+    return digest_var.c_str();
+}
+
+void PBFTCheckpointMessage::setDigest(const char * digest)
+{
+    this->digest_var = digest;
+}
+
+class PBFTCheckpointMessageDescriptor : public cClassDescriptor
+{
+  public:
+    PBFTCheckpointMessageDescriptor();
+    virtual ~PBFTCheckpointMessageDescriptor();
+
+    virtual bool doesSupport(cObject *obj) const;
+    virtual const char *getProperty(const char *propertyname) const;
+    virtual int getFieldCount(void *object) const;
+    virtual const char *getFieldName(void *object, int field) const;
+    virtual int findField(void *object, const char *fieldName) const;
+    virtual unsigned int getFieldTypeFlags(void *object, int field) const;
+    virtual const char *getFieldTypeString(void *object, int field) const;
+    virtual const char *getFieldProperty(void *object, int field, const char *propertyname) const;
+    virtual int getArraySize(void *object, int field) const;
+
+    virtual std::string getFieldAsString(void *object, int field, int i) const;
+    virtual bool setFieldAsString(void *object, int field, int i, const char *value) const;
+
+    virtual const char *getFieldStructName(void *object, int field) const;
+    virtual void *getFieldStructPointer(void *object, int field, int i) const;
+};
+
+Register_ClassDescriptor(PBFTCheckpointMessageDescriptor);
+
+PBFTCheckpointMessageDescriptor::PBFTCheckpointMessageDescriptor() : cClassDescriptor("PBFTCheckpointMessage", "PBFTMessage")
+{
+}
+
+PBFTCheckpointMessageDescriptor::~PBFTCheckpointMessageDescriptor()
+{
+}
+
+bool PBFTCheckpointMessageDescriptor::doesSupport(cObject *obj) const
+{
+    return dynamic_cast<PBFTCheckpointMessage *>(obj)!=NULL;
+}
+
+const char *PBFTCheckpointMessageDescriptor::getProperty(const char *propertyname) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    return basedesc ? basedesc->getProperty(propertyname) : NULL;
+}
+
+int PBFTCheckpointMessageDescriptor::getFieldCount(void *object) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    return basedesc ? 2+basedesc->getFieldCount(object) : 2;
+}
+
+unsigned int PBFTCheckpointMessageDescriptor::getFieldTypeFlags(void *object, int field) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldTypeFlags(object, field);
+        field -= basedesc->getFieldCount(object);
+    }
+    static unsigned int fieldTypeFlags[] = {
+        FD_ISEDITABLE,
+        FD_ISEDITABLE,
+    };
+    return (field>=0 && field<2) ? fieldTypeFlags[field] : 0;
+}
+
+const char *PBFTCheckpointMessageDescriptor::getFieldName(void *object, int field) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldName(object, field);
+        field -= basedesc->getFieldCount(object);
+    }
+    static const char *fieldNames[] = {
+        "seqNumber",
+        "digest",
+    };
+    return (field>=0 && field<2) ? fieldNames[field] : NULL;
+}
+
+int PBFTCheckpointMessageDescriptor::findField(void *object, const char *fieldName) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    int base = basedesc ? basedesc->getFieldCount(object) : 0;
+    if (fieldName[0]=='s' && strcmp(fieldName, "seqNumber")==0) return base+0;
+    if (fieldName[0]=='d' && strcmp(fieldName, "digest")==0) return base+1;
+    return basedesc ? basedesc->findField(object, fieldName) : -1;
+}
+
+const char *PBFTCheckpointMessageDescriptor::getFieldTypeString(void *object, int field) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldTypeString(object, field);
+        field -= basedesc->getFieldCount(object);
+    }
+    static const char *fieldTypeStrings[] = {
+        "int",
+        "string",
+    };
+    return (field>=0 && field<2) ? fieldTypeStrings[field] : NULL;
+}
+
+const char *PBFTCheckpointMessageDescriptor::getFieldProperty(void *object, int field, const char *propertyname) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldProperty(object, field, propertyname);
+        field -= basedesc->getFieldCount(object);
+    }
+    switch (field) {
+        default: return NULL;
+    }
+}
+
+int PBFTCheckpointMessageDescriptor::getArraySize(void *object, int field) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getArraySize(object, field);
+        field -= basedesc->getFieldCount(object);
+    }
+    PBFTCheckpointMessage *pp = (PBFTCheckpointMessage *)object; (void)pp;
+    switch (field) {
+        default: return 0;
+    }
+}
+
+std::string PBFTCheckpointMessageDescriptor::getFieldAsString(void *object, int field, int i) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldAsString(object,field,i);
+        field -= basedesc->getFieldCount(object);
+    }
+    PBFTCheckpointMessage *pp = (PBFTCheckpointMessage *)object; (void)pp;
+    switch (field) {
+        case 0: return long2string(pp->getSeqNumber());
+        case 1: return oppstring2string(pp->getDigest());
+        default: return "";
+    }
+}
+
+bool PBFTCheckpointMessageDescriptor::setFieldAsString(void *object, int field, int i, const char *value) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->setFieldAsString(object,field,i,value);
+        field -= basedesc->getFieldCount(object);
+    }
+    PBFTCheckpointMessage *pp = (PBFTCheckpointMessage *)object; (void)pp;
+    switch (field) {
+        case 0: pp->setSeqNumber(string2long(value)); return true;
+        case 1: pp->setDigest((value)); return true;
+        default: return false;
+    }
+}
+
+const char *PBFTCheckpointMessageDescriptor::getFieldStructName(void *object, int field) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldStructName(object, field);
+        field -= basedesc->getFieldCount(object);
+    }
+    static const char *fieldStructNames[] = {
+        NULL,
+        NULL,
+    };
+    return (field>=0 && field<2) ? fieldStructNames[field] : NULL;
+}
+
+void *PBFTCheckpointMessageDescriptor::getFieldStructPointer(void *object, int field, int i) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldStructPointer(object, field, i);
+        field -= basedesc->getFieldCount(object);
+    }
+    PBFTCheckpointMessage *pp = (PBFTCheckpointMessage *)object; (void)pp;
+    switch (field) {
         default: return NULL;
     }
 }

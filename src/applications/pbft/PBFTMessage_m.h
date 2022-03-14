@@ -34,12 +34,13 @@ static const int BLOCK_L = 88;
 static const int RETRYNUMBER_L = 8;
 
 
-#define PBFTMESSAGE_L(msg) (BASECALL_L(msg) + MESSAGETYPE_L + RETRYNUMBER_L)
+#define PBFTMESSAGE_L(msg) (BASECALL_L(msg) + MESSAGETYPE_L + RETRYNUMBER_L + TRANSPORTADDRESS_L + KEY_L)
 #define PBFTREQUEST(msg) (PBFTMESSAGE_L(msg) + OPERATION_L)
 #define PBFTPREPREPARE(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L + OPERATION_L * msg->getBlock().getBlockOpsNumber())
-#define PBFTPREPARE(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L  + CREATORADDRESS_L + CREATORKEY_L)
-#define PBFTCOMMIT(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L + CREATORADDRESS_L + CREATORKEY_L)
-#define PBFTREPLY(msg) (PBFTMESSAGE_L(msg) + VIEW_L + OPRESULT_L + OPERATION_L + REPLICANUMBER_L + CREATORADDRESS_L + CREATORKEY_L)
+#define PBFTPREPARE(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L)
+#define PBFTCOMMIT(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L)
+#define PBFTREPLY(msg) (PBFTMESSAGE_L(msg) + VIEW_L + OPRESULT_L + OPERATION_L + KEY_L)
+#define PBFTCHECKPOINT(msg) (PBFTMESSAGE_L(msg) + DIGEST_L + SEQNUMBER_L)
 // }}
 
 
@@ -53,6 +54,7 @@ static const int RETRYNUMBER_L = 8;
  * 	PREPARE = 3;
  * 	COMMIT = 4;
  * 	REPLY = 5;
+ * 	CHECKPOINT = 6;
  * }
  * </pre>
  */
@@ -61,7 +63,8 @@ enum MessageType {
     PREPREPARE = 2,
     PREPARE = 3,
     COMMIT = 4,
-    REPLY = 5
+    REPLY = 5,
+    CHECKPOINT = 6
 };
 
 /**
@@ -350,6 +353,48 @@ class PBFTReplyMessage : public ::PBFTMessage
 
 inline void doPacking(cCommBuffer *b, PBFTReplyMessage& obj) {obj.parsimPack(b);}
 inline void doUnpacking(cCommBuffer *b, PBFTReplyMessage& obj) {obj.parsimUnpack(b);}
+
+/**
+ * Class generated from <tt>applications/pbft/PBFTMessage.msg</tt> by opp_msgc.
+ * <pre>
+ * packet PBFTCheckpointMessage extends PBFTMessage {
+ *     type = CHECKPOINT;
+ *     int seqNumber;
+ *     string digest;
+ * }
+ * </pre>
+ */
+class PBFTCheckpointMessage : public ::PBFTMessage
+{
+  protected:
+    int seqNumber_var;
+    opp_string digest_var;
+
+  private:
+    void copy(const PBFTCheckpointMessage& other);
+
+  protected:
+    // protected and unimplemented operator==(), to prevent accidental usage
+    bool operator==(const PBFTCheckpointMessage&);
+
+  public:
+    PBFTCheckpointMessage(const char *name=NULL, int kind=0);
+    PBFTCheckpointMessage(const PBFTCheckpointMessage& other);
+    virtual ~PBFTCheckpointMessage();
+    PBFTCheckpointMessage& operator=(const PBFTCheckpointMessage& other);
+    virtual PBFTCheckpointMessage *dup() const {return new PBFTCheckpointMessage(*this);}
+    virtual void parsimPack(cCommBuffer *b);
+    virtual void parsimUnpack(cCommBuffer *b);
+
+    // field getter/setter methods
+    virtual int getSeqNumber() const;
+    virtual void setSeqNumber(int seqNumber);
+    virtual const char * getDigest() const;
+    virtual void setDigest(const char * digest);
+};
+
+inline void doPacking(cCommBuffer *b, PBFTCheckpointMessage& obj) {obj.parsimPack(b);}
+inline void doUnpacking(cCommBuffer *b, PBFTCheckpointMessage& obj) {obj.parsimUnpack(b);}
 
 
 #endif // _PBFTMESSAGE_M_H_

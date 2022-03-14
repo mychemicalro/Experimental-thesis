@@ -28,6 +28,14 @@
  *
  */
 
+class Checkpoint{
+    public:
+        Checkpoint(int sn, string d);
+        bool proof;
+        int sn;
+        string digest;
+};
+
 class ReplicaState : public cSimpleModule {
 
 public:
@@ -73,6 +81,8 @@ public:
     void addToCommitsLog(PBFTCommitMessage* msg);
 
     void addToRepliesLog(PBFTReplyMessage* msg);
+
+    void addToCheckpointsLog(PBFTCheckpointMessage* msg);
 
     /**
      * Returns true if the message is already present in the log
@@ -136,6 +146,18 @@ public:
 
     void clearDataStructures();
 
+    /**
+     * Given the sequence number, delete all old preprepares, prepares and commits, and also old checkpoints.
+     * For now, leave replies and requests.
+     */
+    void throwGarbage(int sn);
+
+    /**
+     * Checks if for this sequence number the certificate is stable.
+     * If yes, then deletes the previous checkpoints.
+     */
+    void checkpointProcedure(int sn);
+
 protected:
 
 private:
@@ -149,11 +171,14 @@ private:
     std::vector<PBFTPrepareMessage> prepares;
     std::vector<PBFTCommitMessage> commits;
     std::vector<PBFTReplyMessage> replies;
+    std::vector<PBFTCheckpointMessage> checkpoints;
 
     const OverlayKey* overlayk;
 
     map<string,Block> candidateBlocks;
     map<string,double> timestamps;
+
+    map<int, Checkpoint> checkpoints_data;
 
 };
 

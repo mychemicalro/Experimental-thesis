@@ -13,6 +13,22 @@ using namespace std;
 
 Define_Module(ReplicaState);
 
+
+Checkpoint::Checkpoint(int sn, string d){
+    this->sn = sn;
+    this->proof = false;
+    this->digest = d;
+}
+
+/*
+View* ScampTopologyNode::getView() const {
+    return check_and_cast<View*>(simulation.getModule(viewID));
+}
+*/
+
+
+
+
 void ReplicaState::initialize(int stage) {
     // because of IPAddressResolver, we need to wait until interfaces
     // are registered, address auto-assignment takes place etc.
@@ -33,8 +49,11 @@ void ReplicaState::initializeState(const OverlayKey* ok) {
     preprepares.clear();
     prepares.clear();
     commits.clear();
+    replies.clear();
+    checkpoints.clear();
     candidateBlocks.clear();
     timestamps.clear();
+    checkpoints_data.clear();
 
     f = par("f");
 
@@ -121,6 +140,21 @@ void ReplicaState::addToRepliesLog(PBFTReplyMessage* msg){
         EV << "Added a PBFTReplyMessage to plain vector" << endl;
 }
 
+void ReplicaState::addToCheckpointsLog(PBFTCheckpointMessage* msg){
+    if (seenMessage(msg)) return;
+    checkpoints.push_back(*msg);
+
+    // If there is not a Checkpoint object in checkpoints_data, create and add it
+    map<int, Checkpoint>::iterator mi = checkpoints_data.find(msg->getSeqNumber());
+    if(mi == checkpoints_data.end()){
+        Checkpoint chkp(msg->getSeqNumber(), msg->getDigest());
+        checkpoints_data.insert(make_pair(msg->getSeqNumber(), chkp));
+    }
+    if(DEBUG)
+        EV << "Added a PBFTCheckpointMessage to plain vector" << endl;
+        EV << "Checkpoints data len: " << checkpoints_data.size() << endl;
+}
+
 bool ReplicaState::seenMessage(cMessage* msg){
 
     if (dynamic_cast<PBFTRequestMessage*>(msg)){
@@ -196,6 +230,15 @@ bool ReplicaState::seenMessage(cMessage* msg){
                             }
                         }
                     }
+                }
+            }
+        }
+    } else if (dynamic_cast<PBFTCheckpointMessage*>(msg)){
+        PBFTCheckpointMessage *myMsg = dynamic_cast<PBFTCheckpointMessage*>(msg);
+        for(size_t i=0; i<checkpoints.size(); i++){
+            if(checkpoints.at(i).getSeqNumber() == myMsg->getSeqNumber()){
+                if(checkpoints.at(i).getCreatorKey() == myMsg->getCreatorKey()){
+                    return true;
                 }
             }
         }
@@ -414,27 +457,15 @@ PBFTPreprepareMessage& ReplicaState::getPreprepareMessage(Operation& op){
             return preprepares.at(i);
         }
     }
-
 }
 
 bool ReplicaState::operationPrepPrepared(Operation& op){
     for(size_t i=0; i<preprepares.size(); i++){
-
         if(preprepares.at(i).getBlock().containsOp(op)){
             return true;
         }
-
-        /*
-        vector<Operation> const & ops = preprepares.at(i).getBlock().getOperations();
-
-        for(size_t j=0; j<ops.size(); j++){
-            if(ops.at(j).getHash() == op.getHash()){
-                if(DEBUG)
-                    EV << "Operation already preprepared" << endl;
-                return true;
-            }
-        }*/
     }
+
     return false;
 }
 
@@ -458,6 +489,87 @@ void ReplicaState::clearDataStructures(){
     replies.clear();
     candidateBlocks.clear();
     timestamps.clear();
+    checkpoints.clear();
+    checkpoints_data.clear();
 
 }
 
+void ReplicaState::throwGarbage(int sn){
+
+    vector <PBFTPreprepareMessage>::iterator mit;
+    for(mit = preprepares.begin(); mit != preprepares.end();){
+        if(mit->getSeqNumber() < sn){
+            mit = preprepares.erase(mit);
+        }
+        else{
+            mit++;
+        }
+    }
+
+    vector <PBFTPrepareMessage>::iterator mitt;
+    for(mitt = prepares.begin(); mitt != prepares.end();){
+        if(mitt->getSeqNumber() < sn){
+            mitt = prepares.erase(mitt);
+        }
+        else{
+            mitt++;
+        }
+    }
+
+    std::map<string, double>::iterator tmi;
+    std::map<string, Block>::iterator cmi;
+
+    vector <PBFTCommitMessage>::iterator mittt;
+    for(mittt = commits.begin(); mittt != commits.end();){
+        if(mittt->getSeqNumber() < sn){
+            tmi = timestamps.find(mittt->getDigest());
+            if(tmi != timestamps.end()){
+                timestamps.erase(tmi);
+            }
+            cmi = candidateBlocks.find(mittt->getDigest());
+            if(cmi != candidateBlocks.end()){
+                // TODO Do not delete for now -> problems
+                // candidateBlocks.erase(cmi);
+            }
+            mittt = commits.erase(mittt);
+        }
+        else{
+            mittt++;
+        }
+    }
+}
+
+
+void ReplicaState::checkpointProcedure(int sn){
+    int chkp_count = 0;
+    for(size_t i=0; i<checkpoints.size(); i++){
+        if(checkpoints.at(i).getSeqNumber() == sn){
+            chkp_count++;
+        }
+    }
+
+    if (chkp_count >= 2*f+1){
+        if(DEBUG)
+            EV << "Found stable checkpoint for sn: " << sn << endl;
+
+        // If the checkpoint with sn is stable, then throw some data away.
+        map<int, Checkpoint>::iterator mi = checkpoints_data.find(sn);
+
+        if(mi != checkpoints_data.end()){
+            if(mi->second.proof == false){
+                if(DEBUG)
+                    EV << "Throwing garbage" << endl;
+                throwGarbage(sn);
+            }
+
+            mi->second.proof = true;
+            // TODO Delete previous checkpoints
+
+        }
+
+    } else {
+        if(DEBUG)
+            EV << "Checkpoint for sn: " << sn << " still not stable"<< endl;
+    }
+
+}

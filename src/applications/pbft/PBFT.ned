@@ -37,6 +37,7 @@ simple PBFT extends BaseApp
         double requestDelay @unit(s) = default(10s); 	// the number of seconds between a client's request and the next one
         double replyDelay @unit(s) = default(3s); 		// the interval after a request is considered expired by the client, that will resend it. 
         double clientProb = default(0.5); 				// the probability a node is also a client
+        int checkpointPeriod = default(16); 			// PBFT K parameter  
 }
 
 import oversim.common.ITier;

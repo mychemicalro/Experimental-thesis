@@ -37,11 +37,9 @@ void PBFT::initializeApp(int stage){
 
     blockCapacity = par("blockCapacity");
 
-    // TODO watermarks advance mode
     h = 0;
-    H = 256; // Log size
-    checkpointPeriod = 128; // in this way, when a replica procesess block with seqNum = 128,
-    // it will create a checkpoint, h will be 128 and H will be 256+128.
+    checkpointPeriod = par("checkpointPeriod"); // 16
+    H = 4 * checkpointPeriod; // Log size
 
     WATCH(numSent);
     WATCH(numReceived);
@@ -49,9 +47,10 @@ void PBFT::initializeApp(int stage){
     WATCH(joinDelay);
     WATCH(requestDelay);
     WATCH(sequenceNumber);
+    WATCH(H);
+    WATCH(h);
 
     joinTimer = new cMessage("Application joinTimer");
-
 
     // bind our port to receive UDP packets
     bindToPort(2048);
@@ -148,8 +147,6 @@ void PBFT::changeState(States toState){
 
             Operation op = Operation(OverlayKey(42), IPvXAddress("1.1.1.1"), 0);
             initialBlock->addOperation(op);
-            h++;
-            H++;
 
             chainModule->addBlock(*initialBlock);
 
@@ -296,12 +293,16 @@ void PBFT::handleUDPMessage(cMessage* msg) {
             handleReplyMessage(msg);
             break;
 
+        case CHECKPOINT:
+            handleCheckpointMessage(msg);
+            break;
+
         default:
             error("handleUDPMessage(): Unknown message type!");
             break;
     }
 
-    delete msg;
+    // delete msg;
 }
 
 void PBFT::update(const NodeHandle& node, bool joined){
@@ -365,7 +366,6 @@ void PBFT::finishApp() {
 
     globalStatistics->addStdDev("PBFT: Sent packets", numSent);
     globalStatistics->addStdDev("PBFT: Received packets", numReceived);
-
 
     if(nodeType == REPLICAANDCLIENT){
         EV << "Node is client: " << this->overlay->getThisNode().getKey() << endl;
@@ -710,12 +710,16 @@ void PBFT::handleCommitMessage(cMessage* msg){
             if(canExecute){
                 // Ready to commit/execute
                 chainModule->addBlock(myBlock);
-                h++;
-                H++;
+
                 double insertionTimestamp = replicaStateModule->getTimestamp(myBlock.getHash());
                 double insertionTimestamp2 = myBlock.getCreationTimestamp();
                 globalStatistics->addStdDev("PBFT: Blocks latency (when received)", (simTime().dbl() - insertionTimestamp));
                 globalStatistics->addStdDev("PBFT: Blocks latency (when created)", (simTime().dbl() - insertionTimestamp2));
+
+                if(comm->getSeqNumber() % checkpointPeriod == 0){
+                    createCheckpoint(comm->getSeqNumber());
+                }
+
 
                 /**
                  * Attention please.
@@ -739,9 +743,6 @@ void PBFT::handleCommitMessage(cMessage* msg){
                     reply_msg->setCreatorAddress(thisNode);
                     reply_msg->setCreatorKey(overlay->getThisNode().getKey());
                     reply_msg->setBitLength(PBFTREPLY(reply_msg));
-
-                    // TODO Remember this reply for the client, in case it's timer expires -> I have the replies vector.
-                    // Can check there if I already have replies to some request.
 
                     // broadcast(reply_msg);
                     sendToMyNode(reply_msg);
@@ -810,6 +811,29 @@ void PBFT::handleReplyMessage(cMessage* msg){
     }
 
 }
+
+
+void PBFT::handleCheckpointMessage(cMessage* msg){
+    if(DEBUG)
+        EV << "[PBFT::handleCheckpointMessage() @ " << thisNode.getIp()
+           << endl;
+
+    PBFTCheckpointMessage* chkp = dynamic_cast<PBFTCheckpointMessage*>(msg);
+
+    if(replicaStateModule->seenMessage(chkp)){
+        if(DEBUG)
+            EV << "Checkpoint already seen - Checkpoint not processed -- returning " << endl;
+        // delete chkp;
+        return;
+    }
+
+    replicaStateModule->addToCheckpointsLog(chkp);
+    broadcast(chkp);
+
+    replicaStateModule->checkpointProcedure(chkp->getSeqNumber());
+
+}
+
 
 void PBFT::onDemandPrePrepare(PBFTRequestMessage* req){
     if(DEBUG)
@@ -892,23 +916,19 @@ void PBFT::onDemandCommit(int sn){
             if(canExecute){
                 // Ready to commit/execute
                 chainModule->addBlock(myBlock);
-                h++;
-                H++;
-                double insertionTimestamp = replicaStateModule->getTimestamp(myBlock.getHash());
-                globalStatistics->addStdDev("PBFT: Blocks latency", (simTime().dbl() - insertionTimestamp));
 
-                /**
-                 * Attention please.
-                 * Since I have a block I have to reply to all the clients contained in the
-                 * block's operations.
-                 * For each operation in the block, get the operation and send the REPLY
-                 *
-                 */
+                double insertionTimestamp = replicaStateModule->getTimestamp(myBlock.getHash());
+                double insertionTimestamp2 = myBlock.getCreationTimestamp();
+                globalStatistics->addStdDev("PBFT: Blocks latency (when received)", (simTime().dbl() - insertionTimestamp));
+                globalStatistics->addStdDev("PBFT: Blocks latency (when created)", (simTime().dbl() - insertionTimestamp2));
+
+                if(comms.at(j).getSeqNumber() % checkpointPeriod == 0){
+                    createCheckpoint(comms.at(j).getSeqNumber());
+                }
 
                 vector<Operation> const & ops = myBlock.getOperations();
                 for(size_t i=0; i<ops.size(); i++){
 
-                    // Send reply to client, How? as always, trying to broadcast the result ... or through an RPC call?
                     PBFTReplyMessage* reply_msg = new PBFTReplyMessage("PBFTReplyMessage");
                     reply_msg->setView(comms.at(j).getView());
 
@@ -928,11 +948,31 @@ void PBFT::onDemandCommit(int sn){
 
                     delete reply_msg;
                 }
-
             }
         }
     }
+}
 
+void PBFT::createCheckpoint(int sn){
+    if(DEBUG)
+        EV << "[PBFT::createCheckpoint() @ " << thisNode.getIp()
+           << " Sequence number is: " << sn
+           << " Low watermark number is: " << h
+           << " High watermark number is: " << H
+           << endl;
+
+    h = sn;
+    H += 4*checkpointPeriod;
+
+    PBFTCheckpointMessage* chkp_msg = new PBFTCheckpointMessage("PBFTCheckpointMessage");
+    chkp_msg->setSeqNumber(sn);
+    chkp_msg->setCreatorAddress(thisNode);
+    chkp_msg->setCreatorKey(overlay->getThisNode().getKey());
+    chkp_msg->setBitLength(PBFTCHECKPOINT(reply_msg));
+    chkp_msg->setDigest(chainModule->getLastBlockHash().c_str());
+
+    sendToMyNode(chkp_msg);
+    delete chkp_msg;
 
 }
 

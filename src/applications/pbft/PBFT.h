@@ -118,14 +118,17 @@ public:
 
     void handlePreprepareMessage(cMessage* msg);
 
-
     void handleCommitMessage(cMessage* msg);
 
     void handleReplyMessage(cMessage* msg);
 
+    void handleCheckpointMessage(cMessage* msg);
+
     void onDemandPrePrepare(PBFTRequestMessage* req);
 
     void onDemandCommit(int sn);
+
+    void createCheckpoint(int sn);
 
 
 protected:

@@ -22,13 +22,13 @@ static const int BLOCK_L = 88; // TODO strings(64) + 3 int (24) + 208*size()op
 static const int RETRYNUMBER_L = 8;
 
 
-#define PBFTMESSAGE_L(msg) (BASECALL_L(msg) + MESSAGETYPE_L + RETRYNUMBER_L)
+#define PBFTMESSAGE_L(msg) (BASECALL_L(msg) + MESSAGETYPE_L + RETRYNUMBER_L + TRANSPORTADDRESS_L + KEY_L)
 #define PBFTREQUEST(msg) (PBFTMESSAGE_L(msg) + OPERATION_L)
 #define PBFTPREPREPARE(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L + OPERATION_L * msg->getBlock().getBlockOpsNumber())
-#define PBFTPREPARE(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L  + CREATORADDRESS_L + CREATORKEY_L)
-#define PBFTCOMMIT(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L + CREATORADDRESS_L + CREATORKEY_L)
-#define PBFTREPLY(msg) (PBFTMESSAGE_L(msg) + VIEW_L + OPRESULT_L + OPERATION_L + REPLICANUMBER_L + CREATORADDRESS_L + CREATORKEY_L)
-
+#define PBFTPREPARE(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L)
+#define PBFTCOMMIT(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L)
+#define PBFTREPLY(msg) (PBFTMESSAGE_L(msg) + VIEW_L + OPRESULT_L + OPERATION_L + KEY_L)
+#define PBFTCHECKPOINT(msg) (PBFTMESSAGE_L(msg) + DIGEST_L + SEQNUMBER_L)
 
 }}
 class noncobject TransportAddress;            // noncobject means it's not a message class.
@@ -45,6 +45,7 @@ enum MessageType {
 	PREPARE = 3;
 	COMMIT = 4;
 	REPLY = 5;
+	CHECKPOINT = 6;
 }
 
 // now we declare the message proper
@@ -93,6 +94,11 @@ packet PBFTReplyMessage extends PBFTMessage {
 	Operation op;
 }
 
+packet PBFTCheckpointMessage extends PBFTMessage {
+    type = CHECKPOINT;
+    int seqNumber;
+    string digest;
+}
 
 
 
