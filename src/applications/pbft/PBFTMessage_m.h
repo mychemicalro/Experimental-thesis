@@ -309,8 +309,9 @@ inline void doUnpacking(cCommBuffer *b, PBFTCommitMessage& obj) {obj.parsimUnpac
  * 	type = REPLY;
  * 	int view;
  * 	OverlayKey replicaNumber; 							
- * 	int operationResult; 								
- * 	Operation op;
+ * 	
+ * 	
+ * 	Block block;
  * }
  * </pre>
  */
@@ -319,8 +320,7 @@ class PBFTReplyMessage : public ::PBFTMessage
   protected:
     int view_var;
     OverlayKey replicaNumber_var;
-    int operationResult_var;
-    Operation op_var;
+    Block block_var;
 
   private:
     void copy(const PBFTReplyMessage& other);
@@ -344,11 +344,9 @@ class PBFTReplyMessage : public ::PBFTMessage
     virtual OverlayKey& getReplicaNumber();
     virtual const OverlayKey& getReplicaNumber() const {return const_cast<PBFTReplyMessage*>(this)->getReplicaNumber();}
     virtual void setReplicaNumber(const OverlayKey& replicaNumber);
-    virtual int getOperationResult() const;
-    virtual void setOperationResult(int operationResult);
-    virtual Operation& getOp();
-    virtual const Operation& getOp() const {return const_cast<PBFTReplyMessage*>(this)->getOp();}
-    virtual void setOp(const Operation& op);
+    virtual Block& getBlock();
+    virtual const Block& getBlock() const {return const_cast<PBFTReplyMessage*>(this)->getBlock();}
+    virtual void setBlock(const Block& block);
 };
 
 inline void doPacking(cCommBuffer *b, PBFTReplyMessage& obj) {obj.parsimPack(b);}

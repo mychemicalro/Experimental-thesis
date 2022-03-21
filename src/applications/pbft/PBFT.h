@@ -149,6 +149,14 @@ protected:
     int blockCapacity;
     Block* nextBlock;
 
+    // statistics
+    int numRequests;
+    int numPreprepares;
+    int numPrepares;
+    int numCommits;
+    int numReplies;
+    int numCheckpoints;
+
 };
 
 

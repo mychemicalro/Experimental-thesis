@@ -110,11 +110,6 @@ public:
     bool otherPreprepareAccepted(PBFTPreprepareMessage* msg);
 
     /**
-     * Returns true if for the request in input there was also a reply -> meaning that the operation is already in the blockchain
-     */
-    bool requestHasReply(PBFTRequestMessage* msg);
-
-    /**
      * Procedure that check if a replica can send a PREPARE message.
      * Checks all the existing preprepares it received, and if the block can be prepared
      * and the block is not among the candidates, the block becomes a candidate

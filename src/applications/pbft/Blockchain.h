@@ -49,6 +49,16 @@ public:
      */
     string getLastBlockHash();
 
+    /**
+     * Check if operation is present in the blockchain
+     */
+    size_t isPresentOp(Operation& op);
+
+    /**
+     * Given the index, return the i-th block
+     */
+    Block& getBlockByIndex(size_t i);
+
 
 protected:
 

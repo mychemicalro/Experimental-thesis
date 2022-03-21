@@ -6,7 +6,7 @@
  */
 
 
-#define DEBUG false
+#define DEBUG true
 #include "Blockchain.h"
 
 using namespace std;
@@ -85,6 +85,32 @@ void Blockchain::finish(){
     globalStatistics->addStdDev("Blockchain: operations", operations_number);
 
 }
+
+size_t Blockchain::isPresentOp(Operation& op){
+    if(DEBUG)
+        EV << "[Blockchain::isPresentOp() @ " << *overlayk
+           << " Operation: " << op.getHash()<< endl;
+
+    for (size_t i=0; i<blocks.size(); i++){
+        EV << "Block: " << blocks.at(i).getHash() << endl;
+        if(blocks.at(i).containsOp(op)){
+            if (DEBUG)
+                EV << "Operation found" << endl;
+            return i;
+        }
+    }
+
+    if (DEBUG)
+        EV << "Operation not found" << endl;
+    return -1;
+}
+
+Block& Blockchain::getBlockByIndex(size_t i){
+    return blocks.at(i);
+}
+
+
+
 
 
 

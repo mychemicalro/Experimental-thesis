@@ -107,7 +107,7 @@ void ReplicaState::addToPrepreparesLog(PBFTPreprepareMessage* msg){
     preprepares.push_back(*msg);
 
     if(DEBUG)
-        EV << "Added a PBFTPreprepareMessage" << endl;
+        EV << "Added a PBFTPreprepareMessage with block hash: " << msg->getBlock().getHash() << endl;
 
 }
 
@@ -127,8 +127,7 @@ void ReplicaState::addToCommitsLog(PBFTCommitMessage* msg){
     commits.push_back(*msg);
 
     if(DEBUG)
-        EV << "Added a PBFTCommitMessage to plain vector" << endl;
-
+        EV << "Added a PBFTCommitMessage to plain vector with creatorkey: " << msg->getCreatorKey() << endl;
 }
 
 void ReplicaState::addToRepliesLog(PBFTReplyMessage* msg){
@@ -137,7 +136,7 @@ void ReplicaState::addToRepliesLog(PBFTReplyMessage* msg){
     replies.push_back(*msg);
 
     if(DEBUG)
-        EV << "Added a PBFTReplyMessage to plain vector" << endl;
+        EV << "Added a PBFTReplyMessage to plain vector with block hash: " << msg->getBlock().getHash() << endl;
 }
 
 void ReplicaState::addToCheckpointsLog(PBFTCheckpointMessage* msg){
@@ -207,7 +206,7 @@ bool ReplicaState::seenMessage(cMessage* msg){
             }
         }
     } else if (dynamic_cast<PBFTReplyMessage*>(msg)){
-        PBFTReplyMessage *myMsg = dynamic_cast<PBFTReplyMessage*>(msg);
+        PBFTReplyMessage* myMsg = dynamic_cast<PBFTReplyMessage*>(msg);
 
         /**
          * A reply has been already seen when it has:
@@ -219,19 +218,28 @@ bool ReplicaState::seenMessage(cMessage* msg){
          *      - same retryNumber
          */
         for(size_t i=0; i<replies.size(); i++){
-            if(replies.at(i).getOp().getHash() == myMsg->getOp().getHash()){
+            // if(replies.at(i).getOp().getHash() == myMsg->getOp().getHash()){
                 if(replies.at(i).getView() == myMsg->getView()){
-                    if(replies.at(i).getOperationResult() == myMsg->getOperationResult()){
+                    // if(replies.at(i).getOperationResult() == myMsg->getOperationResult()){
                         if(replies.at(i).getReplicaNumber() == myMsg->getReplicaNumber()){
-                            if(replies.at(i).getOp().getTimestamp() == myMsg->getOp().getTimestamp()){
+                            // if(replies.at(i).getOp().getTimestamp() == myMsg->getOp().getTimestamp()){
                                 if(replies.at(i).getRetryNumber() == myMsg->getRetryNumber()){
-                                    return true;
+                                    // return true;
+                                    if(replies.at(i).getBlock().getHash() == myMsg->getBlock().getHash()){
+                                        if (DEBUG){
+                                            EV << "Reply has been seen hash:" << myMsg->getBlock().getHash() << endl;
+                                            EV << "Sender: " << myMsg->getReplicaNumber() << endl;
+                                            EV << "old Reply has been seen hash:" << replies.at(i).getBlock().getHash() << endl;
+                                            EV << "old Sender: " << replies.at(i).getReplicaNumber() << endl;
+                                        }
+                                        return true;
+                                    }
                                 }
-                            }
+                            // }
                         }
-                    }
+                    // }
                 }
-            }
+            // }
         }
     } else if (dynamic_cast<PBFTCheckpointMessage*>(msg)){
         PBFTCheckpointMessage *myMsg = dynamic_cast<PBFTCheckpointMessage*>(msg);
@@ -335,40 +343,18 @@ bool ReplicaState::searchReplyCertificate(PBFTReplyMessage* msg){
 
     for(size_t i=0; i<replies.size(); i++){
 
-        if(replies.at(i).getOp().getHash() == msg->getOp().getHash()){
+        /* if(replies.at(i).getOp().getHash() == msg->getOp().getHash()){ */
+        if(replies.at(i).getBlock().getHash() == msg->getBlock().getHash()){
             if(DEBUG)
                 EV << "replies_c incremented" << endl;
             replies_c ++;
         }
     }
 
-    if (replies_c == f +1){ // TODO exact match on replies_c, maybe ge than f?
-        EV << "Found Reply Certificate! " << endl;
+    if (replies_c == f + 1){ // TODO exact match on replies_c, maybe ge than f?
+        EV << "Found Reply Certificate! Remember this is an exact match." << endl;
         return true;
     }
-
-    return false;
-}
-
-bool ReplicaState::requestHasReply(PBFTRequestMessage* msg){
-    /**
-     * The reply must have the same:
-     *      - operation hash
-     *      - operation client
-     *
-     */
-    for(size_t i=0; i<replies.size(); i++){
-        if(msg->getOp().getHash() == replies.at(i).getOp().getHash()){
-            if(msg->getOp().getOriginatorKey() == replies.at(i).getOp().getOriginatorKey()){
-                if(DEBUG)
-                    EV << "Request already has a reply at this replica. " << endl;
-                return true;
-            }
-        }
-    }
-
-    if(DEBUG)
-        EV << "There is not a reply for this request. " << endl;
 
     return false;
 }
@@ -473,7 +459,6 @@ vector<PBFTCommitMessage> ReplicaState::getCommitMessages(int sn){
     vector<PBFTCommitMessage> res;
     for(size_t i=0; i<commits.size(); i++){
         if(commits.at(i).getSeqNumber() > sn){
-            // PBFTCommitMessage cm = commits.at(i);
             res.push_back(commits.at(i));
         }
     }
@@ -495,6 +480,17 @@ void ReplicaState::clearDataStructures(){
 }
 
 void ReplicaState::throwGarbage(int sn){
+
+    // TODO Can I delete also requests? -> 30% less messages in omnet
+    vector <PBFTRequestMessage>::iterator mir;
+    for(mir = requests.begin(); mir != requests.end();){
+        if(mir->getOp().getTimestamp() < simTime() - 50){
+            mir = requests.erase(mir);
+        }
+        else{
+            mir++;
+        }
+    }
 
     vector <PBFTPreprepareMessage>::iterator mit;
     for(mit = preprepares.begin(); mit != preprepares.end();){
@@ -535,6 +531,17 @@ void ReplicaState::throwGarbage(int sn){
         }
         else{
             mittt++;
+        }
+    }
+
+    // TODO Check if I can delete replies -> 80% less messages in omnet
+    vector <PBFTReplyMessage>::iterator mirr;
+    for(mirr = replies.begin(); mirr != replies.end();){
+        if(mirr->getBlock().getSeqNumber() < sn){
+            mirr = replies.erase(mirr);
+        }
+        else{
+            mirr++;
         }
     }
 }

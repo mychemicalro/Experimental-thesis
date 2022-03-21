@@ -90,8 +90,9 @@ packet PBFTReplyMessage extends PBFTMessage {
 	type = REPLY;
 	int view;
 	OverlayKey replicaNumber; 							// replica number
-	int operationResult; 								// the result of the operation TODO
-	Operation op;
+	// int operationResult; 								// the result of the operation TODO
+	// Operation op;
+	Block block;
 }
 
 packet PBFTCheckpointMessage extends PBFTMessage {

@@ -1445,7 +1445,6 @@ PBFTReplyMessage::PBFTReplyMessage(const char *name, int kind) : PBFTMessage(nam
     this->setType(REPLY);
 
     this->view_var = 0;
-    this->operationResult_var = 0;
 }
 
 PBFTReplyMessage::PBFTReplyMessage(const PBFTReplyMessage& other) : PBFTMessage(other)
@@ -1469,8 +1468,7 @@ void PBFTReplyMessage::copy(const PBFTReplyMessage& other)
 {
     this->view_var = other.view_var;
     this->replicaNumber_var = other.replicaNumber_var;
-    this->operationResult_var = other.operationResult_var;
-    this->op_var = other.op_var;
+    this->block_var = other.block_var;
 }
 
 void PBFTReplyMessage::parsimPack(cCommBuffer *b)
@@ -1478,8 +1476,7 @@ void PBFTReplyMessage::parsimPack(cCommBuffer *b)
     PBFTMessage::parsimPack(b);
     doPacking(b,this->view_var);
     doPacking(b,this->replicaNumber_var);
-    doPacking(b,this->operationResult_var);
-    doPacking(b,this->op_var);
+    doPacking(b,this->block_var);
 }
 
 void PBFTReplyMessage::parsimUnpack(cCommBuffer *b)
@@ -1487,8 +1484,7 @@ void PBFTReplyMessage::parsimUnpack(cCommBuffer *b)
     PBFTMessage::parsimUnpack(b);
     doUnpacking(b,this->view_var);
     doUnpacking(b,this->replicaNumber_var);
-    doUnpacking(b,this->operationResult_var);
-    doUnpacking(b,this->op_var);
+    doUnpacking(b,this->block_var);
 }
 
 int PBFTReplyMessage::getView() const
@@ -1511,24 +1507,14 @@ void PBFTReplyMessage::setReplicaNumber(const OverlayKey& replicaNumber)
     this->replicaNumber_var = replicaNumber;
 }
 
-int PBFTReplyMessage::getOperationResult() const
+Block& PBFTReplyMessage::getBlock()
 {
-    return operationResult_var;
+    return block_var;
 }
 
-void PBFTReplyMessage::setOperationResult(int operationResult)
+void PBFTReplyMessage::setBlock(const Block& block)
 {
-    this->operationResult_var = operationResult;
-}
-
-Operation& PBFTReplyMessage::getOp()
-{
-    return op_var;
-}
-
-void PBFTReplyMessage::setOp(const Operation& op)
-{
-    this->op_var = op;
+    this->block_var = block;
 }
 
 class PBFTReplyMessageDescriptor : public cClassDescriptor
@@ -1578,7 +1564,7 @@ const char *PBFTReplyMessageDescriptor::getProperty(const char *propertyname) co
 int PBFTReplyMessageDescriptor::getFieldCount(void *object) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
-    return basedesc ? 4+basedesc->getFieldCount(object) : 4;
+    return basedesc ? 3+basedesc->getFieldCount(object) : 3;
 }
 
 unsigned int PBFTReplyMessageDescriptor::getFieldTypeFlags(void *object, int field) const
@@ -1592,10 +1578,9 @@ unsigned int PBFTReplyMessageDescriptor::getFieldTypeFlags(void *object, int fie
     static unsigned int fieldTypeFlags[] = {
         FD_ISEDITABLE,
         FD_ISCOMPOUND,
-        FD_ISEDITABLE,
         FD_ISCOMPOUND,
     };
-    return (field>=0 && field<4) ? fieldTypeFlags[field] : 0;
+    return (field>=0 && field<3) ? fieldTypeFlags[field] : 0;
 }
 
 const char *PBFTReplyMessageDescriptor::getFieldName(void *object, int field) const
@@ -1609,10 +1594,9 @@ const char *PBFTReplyMessageDescriptor::getFieldName(void *object, int field) co
     static const char *fieldNames[] = {
         "view",
         "replicaNumber",
-        "operationResult",
-        "op",
+        "block",
     };
-    return (field>=0 && field<4) ? fieldNames[field] : NULL;
+    return (field>=0 && field<3) ? fieldNames[field] : NULL;
 }
 
 int PBFTReplyMessageDescriptor::findField(void *object, const char *fieldName) const
@@ -1621,8 +1605,7 @@ int PBFTReplyMessageDescriptor::findField(void *object, const char *fieldName) c
     int base = basedesc ? basedesc->getFieldCount(object) : 0;
     if (fieldName[0]=='v' && strcmp(fieldName, "view")==0) return base+0;
     if (fieldName[0]=='r' && strcmp(fieldName, "replicaNumber")==0) return base+1;
-    if (fieldName[0]=='o' && strcmp(fieldName, "operationResult")==0) return base+2;
-    if (fieldName[0]=='o' && strcmp(fieldName, "op")==0) return base+3;
+    if (fieldName[0]=='b' && strcmp(fieldName, "block")==0) return base+2;
     return basedesc ? basedesc->findField(object, fieldName) : -1;
 }
 
@@ -1637,10 +1620,9 @@ const char *PBFTReplyMessageDescriptor::getFieldTypeString(void *object, int fie
     static const char *fieldTypeStrings[] = {
         "int",
         "OverlayKey",
-        "int",
-        "Operation",
+        "Block",
     };
-    return (field>=0 && field<4) ? fieldTypeStrings[field] : NULL;
+    return (field>=0 && field<3) ? fieldTypeStrings[field] : NULL;
 }
 
 const char *PBFTReplyMessageDescriptor::getFieldProperty(void *object, int field, const char *propertyname) const
@@ -1682,8 +1664,7 @@ std::string PBFTReplyMessageDescriptor::getFieldAsString(void *object, int field
     switch (field) {
         case 0: return long2string(pp->getView());
         case 1: {std::stringstream out; out << pp->getReplicaNumber(); return out.str();}
-        case 2: return long2string(pp->getOperationResult());
-        case 3: {std::stringstream out; out << pp->getOp(); return out.str();}
+        case 2: {std::stringstream out; out << pp->getBlock(); return out.str();}
         default: return "";
     }
 }
@@ -1699,7 +1680,6 @@ bool PBFTReplyMessageDescriptor::setFieldAsString(void *object, int field, int i
     PBFTReplyMessage *pp = (PBFTReplyMessage *)object; (void)pp;
     switch (field) {
         case 0: pp->setView(string2long(value)); return true;
-        case 2: pp->setOperationResult(string2long(value)); return true;
         default: return false;
     }
 }
@@ -1715,10 +1695,9 @@ const char *PBFTReplyMessageDescriptor::getFieldStructName(void *object, int fie
     static const char *fieldStructNames[] = {
         NULL,
         "OverlayKey",
-        NULL,
-        "Operation",
+        "Block",
     };
-    return (field>=0 && field<4) ? fieldStructNames[field] : NULL;
+    return (field>=0 && field<3) ? fieldStructNames[field] : NULL;
 }
 
 void *PBFTReplyMessageDescriptor::getFieldStructPointer(void *object, int field, int i) const
@@ -1732,7 +1711,7 @@ void *PBFTReplyMessageDescriptor::getFieldStructPointer(void *object, int field,
     PBFTReplyMessage *pp = (PBFTReplyMessage *)object; (void)pp;
     switch (field) {
         case 1: return (void *)(&pp->getReplicaNumber()); break;
-        case 3: return (void *)(&pp->getOp()); break;
+        case 2: return (void *)(&pp->getBlock()); break;
         default: return NULL;
     }
 }
