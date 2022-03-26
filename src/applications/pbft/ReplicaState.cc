@@ -56,6 +56,7 @@ void ReplicaState::initializeState(const OverlayKey* ok) {
     checkpoints_data.clear();
 
     f = par("f");
+    nodesNumber = 3*f + 1;
 
     this->overlayk = ok;
 
@@ -373,7 +374,15 @@ void ReplicaState::addCandidateBlock(PBFTPreprepareMessage* preprep){
 }
 
 void ReplicaState::addTimestamp(PBFTPreprepareMessage* preprep){
-    timestamps.insert(make_pair(preprep->getBlock().getHash(), simTime().dbl()));
+    map<string, double>::iterator it = timestamps.find(preprep->getBlock().getHash());
+    if (it != timestamps.end()){
+        if(DEBUG)
+            EV << "Timestamp already added for block: " << preprep->getBlock().getHash() << endl;
+    } else {
+        timestamps.insert(make_pair(preprep->getBlock().getHash(), simTime().dbl()));
+        EV << "Timestamp added for block: " << preprep->getBlock().getHash() << endl;
+    }
+
 }
 
 double ReplicaState::getTimestamp(string digest){
@@ -484,7 +493,7 @@ void ReplicaState::throwGarbage(int sn){
     // TODO Can I delete also requests? -> 30% less messages in omnet
     vector <PBFTRequestMessage>::iterator mir;
     for(mir = requests.begin(); mir != requests.end();){
-        if(mir->getOp().getTimestamp() < simTime() - 50){
+        if(mir->getOp().getTimestamp() < simTime() - 10){ // TODO It was 50
             mir = requests.erase(mir);
         }
         else{

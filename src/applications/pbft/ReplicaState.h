@@ -53,6 +53,7 @@ public:
     // Getters
     int getCurrentView(){ return currentView; }
     bool getPrimary() { return primary; }
+    int getNodesNumber() { return nodesNumber; }
 
     // and setters
     void setCurrentView(int cv){ currentView = cv; }
@@ -160,6 +161,7 @@ private:
     int currentView;
     bool primary; /* this replica is primary*/
     int f;
+    int nodesNumber;
 
     std::vector<PBFTRequestMessage> requests;
     std::vector<PBFTPreprepareMessage> preprepares;

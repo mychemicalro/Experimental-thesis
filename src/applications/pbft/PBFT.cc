@@ -157,6 +157,14 @@ void PBFT::changeState(States toState){
 
             chainModule->addBlock(*initialBlock);
 
+            PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTRequestMessage");
+            msg->setOp(op);
+            msg->setBitLength(PBFTREQUEST(msg));
+
+            actualRequest = msg->dup();
+            EV << "initial request cloned: " << actualRequest->getOp().getHash() << endl;
+            delete msg;
+
             break;
         }
 
@@ -220,7 +228,12 @@ void PBFT::handleTimerEvent(cMessage* msg) {
         msg->setBitLength(PBFTREQUEST(msg));
 
         // Remember the request for the replyTimer
+
+        // TODO Try to not delete because of error! -> no error ...
+        delete actualRequest;
+
         actualRequest = msg->dup();
+        EV << "Request cloned: " << actualRequest->getOp().getHash() << endl;
         // broadcast(msg);
         sendToMyNode(msg); // just send to my node, it will broadcast the message for me
         delete msg;
@@ -438,7 +451,7 @@ void PBFT::finishApp() {
 
 bool PBFT::isPrimary(){
     double k = this->overlay->getThisNode().getKey().toDouble();
-    if (replicaStateModule->getCurrentView()%4 == k - 1){ // TODO Change the number of replicas (now 4).
+    if (replicaStateModule->getCurrentView() % replicaStateModule->getNodesNumber() == k - 1){ // TODO Change the number of replicas (now 4).
         if(DEBUG)
             EV << "Replica IP: " << thisNode.getIp() << " IS PRIMARY" << endl;
 
@@ -623,6 +636,7 @@ void PBFT::handlePreprepareMessage(cMessage* msg){
         EV << "Replica accepted a PREPREPARE block!" << endl;
 
     replicaStateModule->addToPrepreparesLog(preprep);
+
     replicaStateModule->addTimestamp(preprep);
 
     // If the replica does not have the message in the log what happens? TODO
@@ -769,7 +783,7 @@ void PBFT::handleCommitMessage(cMessage* msg){
             }
 
             PBFTReplyMessage* reply_msg = new PBFTReplyMessage("PBFTReplyMessage");
-            vector<Operation> const & ops = myBlock.getOperations();
+            // vector<Operation> const & ops = myBlock.getOperations();
             reply_msg->setReplicaNumber(this->overlay->getThisNode().getKey());
             reply_msg->setCreatorAddress(thisNode);
             reply_msg->setCreatorKey(overlay->getThisNode().getKey());
@@ -816,8 +830,19 @@ void PBFT::handleReplyMessage(cMessage* msg){
 
     replicaStateModule->addToRepliesLog(rep);
 
-    if (nodeType == REPLICAANDCLIENT){
-        if(rep->getBlock().containsOp(actualRequest->getOp()) /* || rep->getOp().getOriginatorKey() == this->overlay->getThisNode().getKey()*/ ){
+    Operation op;
+    int err = 1;
+    try {
+        op = actualRequest->getOp();
+        err = op.getTimestamp().dbl();
+    } catch (std::exception& e){
+        EV << "Exception caught : " << e.what() << endl;
+        err = -1;
+    }
+
+    if (err != 0 && nodeType == REPLICAANDCLIENT){
+
+        if(rep->getBlock().containsOp(op) /* || rep->getOp().getOriginatorKey() == this->overlay->getThisNode().getKey()*/ ){
             if(DEBUG){
                 EV << "Received a reply message from: " << rep->getReplicaNumber()
                    << " For the request: " << actualRequest->getOp().getHash()
@@ -841,13 +866,17 @@ void PBFT::handleReplyMessage(cMessage* msg){
                 // Delete the replyTimer ...
                 cancelEvent(replyTimer);
 
-                delete actualRequest;
+                // TODO Try to not delete because of error! -> no error ...
+                // delete actualRequest;
 
                 // Create a new request immediately
                 // scheduleAt(simTime() + requestDelay, clientTimer);
                 scheduleAt(simTime(), clientTimer);
                 return;
             }
+        } else {
+            if (DEBUG)
+                EV << "Block: " << rep->getBlock().getHash() << " does not contain my request: " << actualRequest->getOp().getHash() << endl;
         }
 
     } else {
