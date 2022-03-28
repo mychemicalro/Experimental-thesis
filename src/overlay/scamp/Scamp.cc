@@ -15,7 +15,7 @@
 
 // To convert between IP addresses (which have bit 24 active), and keys (which don't), we'll need to set or remove this bit.
 #define BIGBIT (1 << 24)
-#define DEBUG false
+#define DEBUG true
 
 // Important! This line must be present for each module you extend (see BaseApp)
 Define_Module(Scamp);
@@ -177,9 +177,8 @@ void Scamp::changeState(int toState) {
 
             break;
 
-        case READY:
+        case READY: {
             state = READY;
-            // send CompReadyMessage to all registered components and modifies GUI
 
             if(DEBUG)
                 EV << "[Scamp::changeState() @ " << thisNode.getIp()
@@ -188,7 +187,7 @@ void Scamp::changeState(int toState) {
                     << endl;
 
             setOverlayReady(true);
-            getParentModule()->getParentModule()->bubble("Enter READY state.");
+            // getParentModule()->getParentModule()->bubble("Enter READY state.");
 
             // Now I can send imAlive messages and pruneInView
 
@@ -208,7 +207,16 @@ void Scamp::changeState(int toState) {
             if (leasing)
                 leasing = false;
 
+            // Alert the PBFT layer
+            cPacket* ready = new cPacket("KIND_READY", KIND_READY);
+            handleAppMessage(ready);
+            if(DEBUG){
+                EV << "Partial view size: " << partialViewModule->getSize() << endl;
+                EV << "InView size: " << inViewModule->getSize() << endl;
+            }
+
             break;
+        }
 
         case DISCONNECTED:{
             state = DISCONNECTED;
@@ -1220,7 +1228,6 @@ void Scamp::handleAppMessage(cMessage* msg){
            << " (" << thisNode.getKey().toString(16) << ")]\n"
            << endl;
 
-    // TODO add delay?
     send(msg, "appOut");
 
 }

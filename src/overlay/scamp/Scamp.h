@@ -22,6 +22,10 @@ class Scamp : public BaseOverlay {
     double dropChance;       // we'll store the "dropChance" parameter here
 
 
+    enum Kinds {
+        KIND_READY = 1,
+    };
+
     int joinRequestCopies;
     bool useCwhenLeaving;
 

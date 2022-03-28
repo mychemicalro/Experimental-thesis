@@ -41,6 +41,8 @@ static const int RETRYNUMBER_L = 8;
 #define PBFTCOMMIT(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L)
 #define PBFTREPLY(msg) (PBFTMESSAGE_L(msg) + VIEW_L + OPRESULT_L + OPERATION_L + KEY_L)
 #define PBFTCHECKPOINT(msg) (PBFTMESSAGE_L(msg) + DIGEST_L + SEQNUMBER_L)
+#define PBFTUPDATE(msg) (PBFTMESSAGE_L(msg) + 6 * SEQNUMBER_L)
+#define PBFTUPDATEREQUEST(mgs)  (PBFTMESSAGE_L(msg))
 // }}
 
 
@@ -55,6 +57,8 @@ static const int RETRYNUMBER_L = 8;
  * 	COMMIT = 4;
  * 	REPLY = 5;
  * 	CHECKPOINT = 6;
+ * 	UPDATE = 7;
+ * 	UPDATE_REQUEST = 8;
  * }
  * </pre>
  */
@@ -64,7 +68,9 @@ enum MessageType {
     PREPARE = 3,
     COMMIT = 4,
     REPLY = 5,
-    CHECKPOINT = 6
+    CHECKPOINT = 6,
+    UPDATE = 7,
+    UPDATE_REQUEST = 8
 };
 
 /**
@@ -309,8 +315,6 @@ inline void doUnpacking(cCommBuffer *b, PBFTCommitMessage& obj) {obj.parsimUnpac
  * 	type = REPLY;
  * 	int view;
  * 	OverlayKey replicaNumber; 							
- * 	
- * 	
  * 	Block block;
  * }
  * </pre>
@@ -393,6 +397,98 @@ class PBFTCheckpointMessage : public ::PBFTMessage
 
 inline void doPacking(cCommBuffer *b, PBFTCheckpointMessage& obj) {obj.parsimPack(b);}
 inline void doUnpacking(cCommBuffer *b, PBFTCheckpointMessage& obj) {obj.parsimUnpack(b);}
+
+/**
+ * Class generated from <tt>applications/pbft/PBFTMessage.msg</tt> by opp_msgc.
+ * <pre>
+ * packet PBFTUpdateMessage extends PBFTMessage {
+ *     type = UPDATE;
+ *     int seqNumber;
+ *     int view;
+ *     int lowH;
+ *     int highH;
+ *     int blockchain_length;
+ *     int blockchainModuleId;
+ * }
+ * </pre>
+ */
+class PBFTUpdateMessage : public ::PBFTMessage
+{
+  protected:
+    int seqNumber_var;
+    int view_var;
+    int lowH_var;
+    int highH_var;
+    int blockchain_length_var;
+    int blockchainModuleId_var;
+
+  private:
+    void copy(const PBFTUpdateMessage& other);
+
+  protected:
+    // protected and unimplemented operator==(), to prevent accidental usage
+    bool operator==(const PBFTUpdateMessage&);
+
+  public:
+    PBFTUpdateMessage(const char *name=NULL, int kind=0);
+    PBFTUpdateMessage(const PBFTUpdateMessage& other);
+    virtual ~PBFTUpdateMessage();
+    PBFTUpdateMessage& operator=(const PBFTUpdateMessage& other);
+    virtual PBFTUpdateMessage *dup() const {return new PBFTUpdateMessage(*this);}
+    virtual void parsimPack(cCommBuffer *b);
+    virtual void parsimUnpack(cCommBuffer *b);
+
+    // field getter/setter methods
+    virtual int getSeqNumber() const;
+    virtual void setSeqNumber(int seqNumber);
+    virtual int getView() const;
+    virtual void setView(int view);
+    virtual int getLowH() const;
+    virtual void setLowH(int lowH);
+    virtual int getHighH() const;
+    virtual void setHighH(int highH);
+    virtual int getBlockchain_length() const;
+    virtual void setBlockchain_length(int blockchain_length);
+    virtual int getBlockchainModuleId() const;
+    virtual void setBlockchainModuleId(int blockchainModuleId);
+};
+
+inline void doPacking(cCommBuffer *b, PBFTUpdateMessage& obj) {obj.parsimPack(b);}
+inline void doUnpacking(cCommBuffer *b, PBFTUpdateMessage& obj) {obj.parsimUnpack(b);}
+
+/**
+ * Class generated from <tt>applications/pbft/PBFTMessage.msg</tt> by opp_msgc.
+ * <pre>
+ * packet PBFTUpdateRequestMessage extends PBFTMessage {
+ *     type = UPDATE_REQUEST;
+ * }
+ * </pre>
+ */
+class PBFTUpdateRequestMessage : public ::PBFTMessage
+{
+  protected:
+
+  private:
+    void copy(const PBFTUpdateRequestMessage& other);
+
+  protected:
+    // protected and unimplemented operator==(), to prevent accidental usage
+    bool operator==(const PBFTUpdateRequestMessage&);
+
+  public:
+    PBFTUpdateRequestMessage(const char *name=NULL, int kind=0);
+    PBFTUpdateRequestMessage(const PBFTUpdateRequestMessage& other);
+    virtual ~PBFTUpdateRequestMessage();
+    PBFTUpdateRequestMessage& operator=(const PBFTUpdateRequestMessage& other);
+    virtual PBFTUpdateRequestMessage *dup() const {return new PBFTUpdateRequestMessage(*this);}
+    virtual void parsimPack(cCommBuffer *b);
+    virtual void parsimUnpack(cCommBuffer *b);
+
+    // field getter/setter methods
+};
+
+inline void doPacking(cCommBuffer *b, PBFTUpdateRequestMessage& obj) {obj.parsimPack(b);}
+inline void doUnpacking(cCommBuffer *b, PBFTUpdateRequestMessage& obj) {obj.parsimUnpack(b);}
 
 
 #endif // _PBFTMESSAGE_M_H_

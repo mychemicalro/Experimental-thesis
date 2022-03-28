@@ -6,7 +6,7 @@
  */
 
 
-#define DEBUG true
+#define DEBUG false
 #include "Blockchain.h"
 
 using namespace std;
@@ -35,6 +35,7 @@ void Blockchain::initializeChain(const OverlayKey* ok) {
     WATCH(operations_number);
 
     globalStatistics = GlobalStatisticsAccess().get();
+
 }
 
 void Blockchain::addBlock(Block& b){
@@ -42,16 +43,8 @@ void Blockchain::addBlock(Block& b){
     blockchain_length ++;
     operations_number += b.getCapacity();
 
-    if(DEBUG){
+    if(DEBUG)
         EV << "Added new block at node: " << *overlayk << " with digest:" << b.getHash() << endl;
-/*
-        vector<Operation> const & ops = b.getOperations();
-        for(size_t i=0; i<ops.size(); i++){
-            EV << "Operation hash: " << ops.at(i).cHash() << endl;
-        }
-*/
-        EV << "New blockchain length: " << blocks.size() << endl;
-    }
 }
 
 bool Blockchain::isPresent(Block& b){
@@ -68,7 +61,6 @@ bool Blockchain::isPresent(Block& b){
 string Blockchain::getLastBlockHash(){
     return blocks.at(blocks.size()-1).getHash();
 }
-
 
 void Blockchain::finish(){
 
@@ -109,7 +101,30 @@ Block& Blockchain::getBlockByIndex(size_t i){
     return blocks.at(i);
 }
 
+void Blockchain::updateBlockchain(vector<Block> otherBlocks){
+    blocks.clear();
+    blockchain_length = 0;
+    for(size_t i=0; i<otherBlocks.size(); i++){
+        blocks.push_back(otherBlocks.at(i));
+        blockchain_length ++;
+        operations_number += otherBlocks.at(i).getCapacity();
+    }
 
+    if(DEBUG)
+        EV << "Updated blockchain, size -> " << blocks.size() << endl;
+}
+
+vector<Block> Blockchain::getBlocks(){
+    vector<Block> res;
+    for(size_t i=0; i<blocks.size(); i++){
+        res.push_back(blocks.at(i));
+    }
+
+    if(DEBUG){
+        EV << "Get " << res.size() << " blocks" << endl;
+    }
+    return res;
+}
 
 
 

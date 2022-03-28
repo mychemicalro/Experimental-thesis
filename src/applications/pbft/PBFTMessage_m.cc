@@ -39,6 +39,8 @@ EXECUTE_ON_STARTUP(
     e->insert(COMMIT, "COMMIT");
     e->insert(REPLY, "REPLY");
     e->insert(CHECKPOINT, "CHECKPOINT");
+    e->insert(UPDATE, "UPDATE");
+    e->insert(UPDATE_REQUEST, "UPDATE_REQUEST");
 );
 
 Register_Class(PBFTMessage);
@@ -1970,6 +1972,556 @@ void *PBFTCheckpointMessageDescriptor::getFieldStructPointer(void *object, int f
         field -= basedesc->getFieldCount(object);
     }
     PBFTCheckpointMessage *pp = (PBFTCheckpointMessage *)object; (void)pp;
+    switch (field) {
+        default: return NULL;
+    }
+}
+
+Register_Class(PBFTUpdateMessage);
+
+PBFTUpdateMessage::PBFTUpdateMessage(const char *name, int kind) : PBFTMessage(name,kind)
+{
+    this->setType(UPDATE);
+
+    this->seqNumber_var = 0;
+    this->view_var = 0;
+    this->lowH_var = 0;
+    this->highH_var = 0;
+    this->blockchain_length_var = 0;
+    this->blockchainModuleId_var = 0;
+}
+
+PBFTUpdateMessage::PBFTUpdateMessage(const PBFTUpdateMessage& other) : PBFTMessage(other)
+{
+    copy(other);
+}
+
+PBFTUpdateMessage::~PBFTUpdateMessage()
+{
+}
+
+PBFTUpdateMessage& PBFTUpdateMessage::operator=(const PBFTUpdateMessage& other)
+{
+    if (this==&other) return *this;
+    PBFTMessage::operator=(other);
+    copy(other);
+    return *this;
+}
+
+void PBFTUpdateMessage::copy(const PBFTUpdateMessage& other)
+{
+    this->seqNumber_var = other.seqNumber_var;
+    this->view_var = other.view_var;
+    this->lowH_var = other.lowH_var;
+    this->highH_var = other.highH_var;
+    this->blockchain_length_var = other.blockchain_length_var;
+    this->blockchainModuleId_var = other.blockchainModuleId_var;
+}
+
+void PBFTUpdateMessage::parsimPack(cCommBuffer *b)
+{
+    PBFTMessage::parsimPack(b);
+    doPacking(b,this->seqNumber_var);
+    doPacking(b,this->view_var);
+    doPacking(b,this->lowH_var);
+    doPacking(b,this->highH_var);
+    doPacking(b,this->blockchain_length_var);
+    doPacking(b,this->blockchainModuleId_var);
+}
+
+void PBFTUpdateMessage::parsimUnpack(cCommBuffer *b)
+{
+    PBFTMessage::parsimUnpack(b);
+    doUnpacking(b,this->seqNumber_var);
+    doUnpacking(b,this->view_var);
+    doUnpacking(b,this->lowH_var);
+    doUnpacking(b,this->highH_var);
+    doUnpacking(b,this->blockchain_length_var);
+    doUnpacking(b,this->blockchainModuleId_var);
+}
+
+int PBFTUpdateMessage::getSeqNumber() const
+{
+    return seqNumber_var;
+}
+
+void PBFTUpdateMessage::setSeqNumber(int seqNumber)
+{
+    this->seqNumber_var = seqNumber;
+}
+
+int PBFTUpdateMessage::getView() const
+{
+    return view_var;
+}
+
+void PBFTUpdateMessage::setView(int view)
+{
+    this->view_var = view;
+}
+
+int PBFTUpdateMessage::getLowH() const
+{
+    return lowH_var;
+}
+
+void PBFTUpdateMessage::setLowH(int lowH)
+{
+    this->lowH_var = lowH;
+}
+
+int PBFTUpdateMessage::getHighH() const
+{
+    return highH_var;
+}
+
+void PBFTUpdateMessage::setHighH(int highH)
+{
+    this->highH_var = highH;
+}
+
+int PBFTUpdateMessage::getBlockchain_length() const
+{
+    return blockchain_length_var;
+}
+
+void PBFTUpdateMessage::setBlockchain_length(int blockchain_length)
+{
+    this->blockchain_length_var = blockchain_length;
+}
+
+int PBFTUpdateMessage::getBlockchainModuleId() const
+{
+    return blockchainModuleId_var;
+}
+
+void PBFTUpdateMessage::setBlockchainModuleId(int blockchainModuleId)
+{
+    this->blockchainModuleId_var = blockchainModuleId;
+}
+
+class PBFTUpdateMessageDescriptor : public cClassDescriptor
+{
+  public:
+    PBFTUpdateMessageDescriptor();
+    virtual ~PBFTUpdateMessageDescriptor();
+
+    virtual bool doesSupport(cObject *obj) const;
+    virtual const char *getProperty(const char *propertyname) const;
+    virtual int getFieldCount(void *object) const;
+    virtual const char *getFieldName(void *object, int field) const;
+    virtual int findField(void *object, const char *fieldName) const;
+    virtual unsigned int getFieldTypeFlags(void *object, int field) const;
+    virtual const char *getFieldTypeString(void *object, int field) const;
+    virtual const char *getFieldProperty(void *object, int field, const char *propertyname) const;
+    virtual int getArraySize(void *object, int field) const;
+
+    virtual std::string getFieldAsString(void *object, int field, int i) const;
+    virtual bool setFieldAsString(void *object, int field, int i, const char *value) const;
+
+    virtual const char *getFieldStructName(void *object, int field) const;
+    virtual void *getFieldStructPointer(void *object, int field, int i) const;
+};
+
+Register_ClassDescriptor(PBFTUpdateMessageDescriptor);
+
+PBFTUpdateMessageDescriptor::PBFTUpdateMessageDescriptor() : cClassDescriptor("PBFTUpdateMessage", "PBFTMessage")
+{
+}
+
+PBFTUpdateMessageDescriptor::~PBFTUpdateMessageDescriptor()
+{
+}
+
+bool PBFTUpdateMessageDescriptor::doesSupport(cObject *obj) const
+{
+    return dynamic_cast<PBFTUpdateMessage *>(obj)!=NULL;
+}
+
+const char *PBFTUpdateMessageDescriptor::getProperty(const char *propertyname) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    return basedesc ? basedesc->getProperty(propertyname) : NULL;
+}
+
+int PBFTUpdateMessageDescriptor::getFieldCount(void *object) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    return basedesc ? 6+basedesc->getFieldCount(object) : 6;
+}
+
+unsigned int PBFTUpdateMessageDescriptor::getFieldTypeFlags(void *object, int field) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldTypeFlags(object, field);
+        field -= basedesc->getFieldCount(object);
+    }
+    static unsigned int fieldTypeFlags[] = {
+        FD_ISEDITABLE,
+        FD_ISEDITABLE,
+        FD_ISEDITABLE,
+        FD_ISEDITABLE,
+        FD_ISEDITABLE,
+        FD_ISEDITABLE,
+    };
+    return (field>=0 && field<6) ? fieldTypeFlags[field] : 0;
+}
+
+const char *PBFTUpdateMessageDescriptor::getFieldName(void *object, int field) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldName(object, field);
+        field -= basedesc->getFieldCount(object);
+    }
+    static const char *fieldNames[] = {
+        "seqNumber",
+        "view",
+        "lowH",
+        "highH",
+        "blockchain_length",
+        "blockchainModuleId",
+    };
+    return (field>=0 && field<6) ? fieldNames[field] : NULL;
+}
+
+int PBFTUpdateMessageDescriptor::findField(void *object, const char *fieldName) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    int base = basedesc ? basedesc->getFieldCount(object) : 0;
+    if (fieldName[0]=='s' && strcmp(fieldName, "seqNumber")==0) return base+0;
+    if (fieldName[0]=='v' && strcmp(fieldName, "view")==0) return base+1;
+    if (fieldName[0]=='l' && strcmp(fieldName, "lowH")==0) return base+2;
+    if (fieldName[0]=='h' && strcmp(fieldName, "highH")==0) return base+3;
+    if (fieldName[0]=='b' && strcmp(fieldName, "blockchain_length")==0) return base+4;
+    if (fieldName[0]=='b' && strcmp(fieldName, "blockchainModuleId")==0) return base+5;
+    return basedesc ? basedesc->findField(object, fieldName) : -1;
+}
+
+const char *PBFTUpdateMessageDescriptor::getFieldTypeString(void *object, int field) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldTypeString(object, field);
+        field -= basedesc->getFieldCount(object);
+    }
+    static const char *fieldTypeStrings[] = {
+        "int",
+        "int",
+        "int",
+        "int",
+        "int",
+        "int",
+    };
+    return (field>=0 && field<6) ? fieldTypeStrings[field] : NULL;
+}
+
+const char *PBFTUpdateMessageDescriptor::getFieldProperty(void *object, int field, const char *propertyname) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldProperty(object, field, propertyname);
+        field -= basedesc->getFieldCount(object);
+    }
+    switch (field) {
+        default: return NULL;
+    }
+}
+
+int PBFTUpdateMessageDescriptor::getArraySize(void *object, int field) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getArraySize(object, field);
+        field -= basedesc->getFieldCount(object);
+    }
+    PBFTUpdateMessage *pp = (PBFTUpdateMessage *)object; (void)pp;
+    switch (field) {
+        default: return 0;
+    }
+}
+
+std::string PBFTUpdateMessageDescriptor::getFieldAsString(void *object, int field, int i) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldAsString(object,field,i);
+        field -= basedesc->getFieldCount(object);
+    }
+    PBFTUpdateMessage *pp = (PBFTUpdateMessage *)object; (void)pp;
+    switch (field) {
+        case 0: return long2string(pp->getSeqNumber());
+        case 1: return long2string(pp->getView());
+        case 2: return long2string(pp->getLowH());
+        case 3: return long2string(pp->getHighH());
+        case 4: return long2string(pp->getBlockchain_length());
+        case 5: return long2string(pp->getBlockchainModuleId());
+        default: return "";
+    }
+}
+
+bool PBFTUpdateMessageDescriptor::setFieldAsString(void *object, int field, int i, const char *value) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->setFieldAsString(object,field,i,value);
+        field -= basedesc->getFieldCount(object);
+    }
+    PBFTUpdateMessage *pp = (PBFTUpdateMessage *)object; (void)pp;
+    switch (field) {
+        case 0: pp->setSeqNumber(string2long(value)); return true;
+        case 1: pp->setView(string2long(value)); return true;
+        case 2: pp->setLowH(string2long(value)); return true;
+        case 3: pp->setHighH(string2long(value)); return true;
+        case 4: pp->setBlockchain_length(string2long(value)); return true;
+        case 5: pp->setBlockchainModuleId(string2long(value)); return true;
+        default: return false;
+    }
+}
+
+const char *PBFTUpdateMessageDescriptor::getFieldStructName(void *object, int field) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldStructName(object, field);
+        field -= basedesc->getFieldCount(object);
+    }
+    static const char *fieldStructNames[] = {
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+    };
+    return (field>=0 && field<6) ? fieldStructNames[field] : NULL;
+}
+
+void *PBFTUpdateMessageDescriptor::getFieldStructPointer(void *object, int field, int i) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldStructPointer(object, field, i);
+        field -= basedesc->getFieldCount(object);
+    }
+    PBFTUpdateMessage *pp = (PBFTUpdateMessage *)object; (void)pp;
+    switch (field) {
+        default: return NULL;
+    }
+}
+
+Register_Class(PBFTUpdateRequestMessage);
+
+PBFTUpdateRequestMessage::PBFTUpdateRequestMessage(const char *name, int kind) : PBFTMessage(name,kind)
+{
+    this->setType(UPDATE_REQUEST);
+}
+
+PBFTUpdateRequestMessage::PBFTUpdateRequestMessage(const PBFTUpdateRequestMessage& other) : PBFTMessage(other)
+{
+    copy(other);
+}
+
+PBFTUpdateRequestMessage::~PBFTUpdateRequestMessage()
+{
+}
+
+PBFTUpdateRequestMessage& PBFTUpdateRequestMessage::operator=(const PBFTUpdateRequestMessage& other)
+{
+    if (this==&other) return *this;
+    PBFTMessage::operator=(other);
+    copy(other);
+    return *this;
+}
+
+void PBFTUpdateRequestMessage::copy(const PBFTUpdateRequestMessage& other)
+{
+}
+
+void PBFTUpdateRequestMessage::parsimPack(cCommBuffer *b)
+{
+    PBFTMessage::parsimPack(b);
+}
+
+void PBFTUpdateRequestMessage::parsimUnpack(cCommBuffer *b)
+{
+    PBFTMessage::parsimUnpack(b);
+}
+
+class PBFTUpdateRequestMessageDescriptor : public cClassDescriptor
+{
+  public:
+    PBFTUpdateRequestMessageDescriptor();
+    virtual ~PBFTUpdateRequestMessageDescriptor();
+
+    virtual bool doesSupport(cObject *obj) const;
+    virtual const char *getProperty(const char *propertyname) const;
+    virtual int getFieldCount(void *object) const;
+    virtual const char *getFieldName(void *object, int field) const;
+    virtual int findField(void *object, const char *fieldName) const;
+    virtual unsigned int getFieldTypeFlags(void *object, int field) const;
+    virtual const char *getFieldTypeString(void *object, int field) const;
+    virtual const char *getFieldProperty(void *object, int field, const char *propertyname) const;
+    virtual int getArraySize(void *object, int field) const;
+
+    virtual std::string getFieldAsString(void *object, int field, int i) const;
+    virtual bool setFieldAsString(void *object, int field, int i, const char *value) const;
+
+    virtual const char *getFieldStructName(void *object, int field) const;
+    virtual void *getFieldStructPointer(void *object, int field, int i) const;
+};
+
+Register_ClassDescriptor(PBFTUpdateRequestMessageDescriptor);
+
+PBFTUpdateRequestMessageDescriptor::PBFTUpdateRequestMessageDescriptor() : cClassDescriptor("PBFTUpdateRequestMessage", "PBFTMessage")
+{
+}
+
+PBFTUpdateRequestMessageDescriptor::~PBFTUpdateRequestMessageDescriptor()
+{
+}
+
+bool PBFTUpdateRequestMessageDescriptor::doesSupport(cObject *obj) const
+{
+    return dynamic_cast<PBFTUpdateRequestMessage *>(obj)!=NULL;
+}
+
+const char *PBFTUpdateRequestMessageDescriptor::getProperty(const char *propertyname) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    return basedesc ? basedesc->getProperty(propertyname) : NULL;
+}
+
+int PBFTUpdateRequestMessageDescriptor::getFieldCount(void *object) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    return basedesc ? 0+basedesc->getFieldCount(object) : 0;
+}
+
+unsigned int PBFTUpdateRequestMessageDescriptor::getFieldTypeFlags(void *object, int field) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldTypeFlags(object, field);
+        field -= basedesc->getFieldCount(object);
+    }
+    return 0;
+}
+
+const char *PBFTUpdateRequestMessageDescriptor::getFieldName(void *object, int field) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldName(object, field);
+        field -= basedesc->getFieldCount(object);
+    }
+    return NULL;
+}
+
+int PBFTUpdateRequestMessageDescriptor::findField(void *object, const char *fieldName) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    return basedesc ? basedesc->findField(object, fieldName) : -1;
+}
+
+const char *PBFTUpdateRequestMessageDescriptor::getFieldTypeString(void *object, int field) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldTypeString(object, field);
+        field -= basedesc->getFieldCount(object);
+    }
+    return NULL;
+}
+
+const char *PBFTUpdateRequestMessageDescriptor::getFieldProperty(void *object, int field, const char *propertyname) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldProperty(object, field, propertyname);
+        field -= basedesc->getFieldCount(object);
+    }
+    switch (field) {
+        default: return NULL;
+    }
+}
+
+int PBFTUpdateRequestMessageDescriptor::getArraySize(void *object, int field) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getArraySize(object, field);
+        field -= basedesc->getFieldCount(object);
+    }
+    PBFTUpdateRequestMessage *pp = (PBFTUpdateRequestMessage *)object; (void)pp;
+    switch (field) {
+        default: return 0;
+    }
+}
+
+std::string PBFTUpdateRequestMessageDescriptor::getFieldAsString(void *object, int field, int i) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldAsString(object,field,i);
+        field -= basedesc->getFieldCount(object);
+    }
+    PBFTUpdateRequestMessage *pp = (PBFTUpdateRequestMessage *)object; (void)pp;
+    switch (field) {
+        default: return "";
+    }
+}
+
+bool PBFTUpdateRequestMessageDescriptor::setFieldAsString(void *object, int field, int i, const char *value) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->setFieldAsString(object,field,i,value);
+        field -= basedesc->getFieldCount(object);
+    }
+    PBFTUpdateRequestMessage *pp = (PBFTUpdateRequestMessage *)object; (void)pp;
+    switch (field) {
+        default: return false;
+    }
+}
+
+const char *PBFTUpdateRequestMessageDescriptor::getFieldStructName(void *object, int field) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldStructName(object, field);
+        field -= basedesc->getFieldCount(object);
+    }
+    return NULL;
+}
+
+void *PBFTUpdateRequestMessageDescriptor::getFieldStructPointer(void *object, int field, int i) const
+{
+    cClassDescriptor *basedesc = getBaseClassDescriptor();
+    if (basedesc) {
+        if (field < basedesc->getFieldCount(object))
+            return basedesc->getFieldStructPointer(object, field, i);
+        field -= basedesc->getFieldCount(object);
+    }
+    PBFTUpdateRequestMessage *pp = (PBFTUpdateRequestMessage *)object; (void)pp;
     switch (field) {
         default: return NULL;
     }

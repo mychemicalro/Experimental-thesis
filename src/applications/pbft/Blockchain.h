@@ -31,6 +31,10 @@ public:
         return MAX_STAGE_OVERLAY + 1;
     }
 
+    int getBlockchainLength() { return blockchain_length; }
+
+    int getBlockchainId(){ return getId(); }
+
     // initialize parameters and data structure
     virtual void initializeChain(const OverlayKey* ok);
 
@@ -58,6 +62,13 @@ public:
      * Given the index, return the i-th block
      */
     Block& getBlockByIndex(size_t i);
+
+    /**
+     * clears the blockchain and adds the blocks in input.
+     */
+    void updateBlockchain(vector<Block> otherBlocks);
+
+    vector<Block> getBlocks();
 
 
 protected:

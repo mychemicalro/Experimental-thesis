@@ -41,6 +41,7 @@ void Block::addOperation(Operation& op){
 
     if(!containsOp(op)){
         operations.push_back(op);
+        computeHash();
     }
 }
 
