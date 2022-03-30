@@ -344,7 +344,6 @@ bool ReplicaState::searchReplyCertificate(PBFTReplyMessage* msg){
 
     for(size_t i=0; i<replies.size(); i++){
 
-        /* if(replies.at(i).getOp().getHash() == msg->getOp().getHash()){ */
         if(replies.at(i).getBlock().getHash() == msg->getBlock().getHash()){
             if(DEBUG)
                 EV << "replies_c incremented" << endl;

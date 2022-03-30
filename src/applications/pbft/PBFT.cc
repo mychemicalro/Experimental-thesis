@@ -825,7 +825,6 @@ void PBFT::handleReplyMessage(cMessage* msg){
             if(replicaStateModule->searchReplyCertificate(rep)){
                 if(DEBUG){
                     EV << "Found reply certificate for request: " << actualRequest->getOp().getHash() << endl;
-                    EV << "Reply accepted" << endl;
                 }
 
                 globalStatistics->addStdDev("PBFT: Requests latency", (simTime().dbl() - actualRequest->getOp().getTimestamp()).dbl());
@@ -837,7 +836,6 @@ void PBFT::handleReplyMessage(cMessage* msg){
                 // delete actualRequest;
 
                 // Create a new request immediately
-                // scheduleAt(simTime() + requestDelay, clientTimer);
                 scheduleAt(simTime(), clientTimer);
                 return;
             }

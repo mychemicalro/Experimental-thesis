@@ -71,9 +71,9 @@ void Blockchain::finish(){
         << " ops: " << operations_number
         << endl;
 
-    // globalStatistics->recordHistogram("Blockchain: Number of clients", 1);
+    globalStatistics->recordHistogram("Blockchain: Length", blockchain_length);
 
-    globalStatistics->addStdDev("Blockchain: length", blockchain_length);
+    // globalStatistics->addStdDev("Blockchain: length", blockchain_length);
     globalStatistics->addStdDev("Blockchain: operations", operations_number);
 
 }
