@@ -54,6 +54,7 @@ void ReplicaState::initializeState(const OverlayKey* ok) {
     candidateBlocks.clear();
     timestamps.clear();
     checkpoints_data.clear();
+    clientRequests.clear();
 
     f = par("f");
     nodesNumber = 3*f + 1;
@@ -484,6 +485,7 @@ void ReplicaState::clearDataStructures(){
     timestamps.clear();
     checkpoints.clear();
     checkpoints_data.clear();
+    clientRequests.clear();
 
 }
 
@@ -588,3 +590,32 @@ void ReplicaState::checkpointProcedure(int sn){
     }
 
 }
+
+void ReplicaState::deleteRequestFromClientRequests(Operation& op){
+
+    vector <PBFTRequestMessage>::iterator reqs;
+    for(reqs = clientRequests.begin(); reqs != clientRequests.end();){
+        if(op.getHash() == reqs->getOp().getHash()){
+            reqs = clientRequests.erase(reqs);
+
+            if(DEBUG)
+                EV << "Deleted request from client requests" << endl;
+
+        } else {
+            reqs++;
+        }
+    }
+}
+
+vector<PBFTRequestMessage> ReplicaState::getClientRequests(){
+    vector<PBFTRequestMessage> res;
+    for(size_t i=0; i<clientRequests.size(); i++){
+        res.push_back(clientRequests.at(i));
+    }
+    return res;
+}
+
+void ReplicaState::addClientRequest(PBFTRequestMessage* req){
+    clientRequests.push_back(*req);
+}
+

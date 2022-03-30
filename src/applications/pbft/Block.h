@@ -69,6 +69,11 @@ class Block {
 
         bool containsOp(Operation& op);
 
+        /**
+         * Returns a vector with all ops contained in the block created by creator.
+         */
+        vector<Operation> getOpsByCreator(OverlayKey creator);
+
     private:
         string hash; // the block's hash
         string prevBlockHash; // the hash of the previous block appended in the blockchain

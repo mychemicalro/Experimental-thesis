@@ -9,7 +9,7 @@
 #include "Block.h"
 #include "sha256.h"
 
-#define DEBUG false
+#define DEBUG true
 
 Block::Block(int c){
     capacity = c;
@@ -80,4 +80,19 @@ bool Block::containsOp(Operation& op){
         }
     }
     return false;
+}
+
+vector<Operation> Block::getOpsByCreator(OverlayKey creator){
+    vector<Operation> res;
+
+    for(size_t i=0; i<operations.size(); i++){
+        if (operations.at(i).getOriginatorKey() == creator){
+            res.push_back(operations.at(i));
+        }
+    }
+
+    if (DEBUG)
+        EV << "Operations found by creator in this block: " << res.size() << endl;
+
+    return res;
 }

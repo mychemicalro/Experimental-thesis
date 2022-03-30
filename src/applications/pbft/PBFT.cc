@@ -141,13 +141,13 @@ void PBFT::changeState(States toState){
 
             } else {
                 // Create a fake actualRequest
-                Operation op = Operation(OverlayKey(42), IPvXAddress("1.1.1.1"), 0);
+                // Operation op = Operation(OverlayKey(42), IPvXAddress("1.1.1.1"), 0);
                 // This request is needed for initializing the actualRequest ..
-                PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTRequestMessage");
-                msg->setOp(op);
-                msg->setBitLength(PBFTREQUEST(msg));
-                actualRequest = msg->dup();
-                delete msg;
+                // PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTRequestMessage");
+                // msg->setOp(op);
+                // msg->setBitLength(PBFTREQUEST(msg));
+                // actualRequest = msg->dup();
+                // delete msg;
 
             }
             break;
@@ -198,29 +198,35 @@ void PBFT::handleTimerEvent(cMessage* msg) {
 
         // Remember the request for the replyTimer
 
-        if(actualRequest){
-            delete actualRequest;
-        }
+        // if(actualRequest){
+        //     delete actualRequest;
+        // }
 
-        actualRequest = msg->dup();
+        // actualRequest = msg->dup();
+
+        replicaStateModule->addClientRequest(msg->dup());
 
         sendToMyNode(msg);
         delete msg;
 
-        scheduleAt(simTime() + replyDelay, replyTimer);
+        // scheduleAt(simTime() + replyDelay, replyTimer);
+        scheduleAt(simTime() + requestDelay, clientTimer);
+
 
     } else if(msg == replyTimer){
         // I know the timestamp of the request
         if(DEBUG)
-            EV << "Broadcasting again request:"  << actualRequest->getOp().getHash() << endl;
+            EV << "Broadcasting again queued requests. " << endl;
 
-        actualRequest->setRetryNumber(actualRequest->getRetryNumber() + 1);
-        broadcast(actualRequest);
+        vector<PBFTRequestMessage> queuedReqs = replicaStateModule->getClientRequests();
+        for(size_t i=0; i<queuedReqs.size(); i++){
+            queuedReqs.at(i).setRetryNumber(queuedReqs.at(i).getRetryNumber() + 1);
+            broadcast(&queuedReqs.at(i));
 
-        // Record retry numbers
-        if(nodeType == REPLICAANDCLIENT){
-            globalStatistics->recordHistogram("PBFT: Retry numbers", actualRequest->getRetryNumber());
         }
+
+        // actualRequest->setRetryNumber(actualRequest->getRetryNumber() + 1);
+        // broadcast(actualRequest);
 
         scheduleAt(simTime() + replyDelay, replyTimer);
 
@@ -410,9 +416,9 @@ void PBFT::finishApp() {
     }
     replicaStateModule->clearDataStructures();
 
-    if(nodeType == REPLICAANDCLIENT){
-        delete actualRequest;
-    }
+    // if(nodeType == REPLICAANDCLIENT){
+    //     delete actualRequest;
+    // }
 
 }
 
@@ -788,65 +794,43 @@ void PBFT::handleReplyMessage(cMessage* msg){
         // delete rep;
         return;
     }
-    // I do not have the hash here!
-    EV << "BLOCK HASH IN HANDLEREPLY: " << rep->getBlock().getHash()
-        << " capacity: " << rep->getBlock().getCapacity()
-        << " from: " << rep->getCreatorKey()
-        << " at: " << this->overlay->getThisNode().getKey()
-        << endl;
 
     replicaStateModule->addToRepliesLog(rep);
 
-    Operation op;
-    int err = 1;
-    try {
-        op = actualRequest->getOp();
-        err = op.getTimestamp().dbl();
-    } catch (std::exception& e){
-        EV << "Exception caught : " << e.what() << endl;
-        err = -1;
-    }
+    if (nodeType == REPLICAANDCLIENT){
 
-    if (err != 0 && nodeType == REPLICAANDCLIENT){
+        vector<Operation> ops = rep->getBlock().getOpsByCreator(this->overlay->getThisNode().getKey());
 
-        if(rep->getBlock().containsOp(op) /* || rep->getOp().getOriginatorKey() == this->overlay->getThisNode().getKey()*/ ){
-            if(DEBUG){
-                EV << "Received a reply message from: " << rep->getReplicaNumber()
-                   << " For the request: " << actualRequest->getOp().getHash()
-                   << endl;
+        if (ops.size() > 0){
+            if(DEBUG)
+                EV << "Received block with " << ops.size() << " operations inside" << endl;
 
-                EV << "Received reply with block sn: " << rep->getBlock().getSeqNumber()
-                   << " hash: " << rep->getBlock().getHash()
-                   << " capacity: " << rep->getBlock().getCapacity()
-                   << endl;
-
-            }
-            // The client waits for a weak certificate of f+1 replies. This will be called reply certificate.
             if(replicaStateModule->searchReplyCertificate(rep)){
-                if(DEBUG){
-                    EV << "Found reply certificate for request: " << actualRequest->getOp().getHash() << endl;
+                if(DEBUG)
+                    EV << "Found reply certificate for block" << rep->getBlock().getHash() << endl;
+
+                for(size_t i = 0; i<ops.size(); i++){
+                    globalStatistics->addStdDev("PBFT: Requests latency", (simTime().dbl() - ops.at(i).getTimestamp()).dbl());
+
+                    // Empty the clientRequests queue
+                    replicaStateModule->deleteRequestFromClientRequests(ops.at(i));
+
                 }
 
-                globalStatistics->addStdDev("PBFT: Requests latency", (simTime().dbl() - actualRequest->getOp().getTimestamp()).dbl());
-
-                // Delete the replyTimer ...
-                cancelEvent(replyTimer);
-
-                // TODO Try to not delete because of error! -> no error ...
-                // delete actualRequest;
-
-                // Create a new request immediately
-                scheduleAt(simTime(), clientTimer);
-                return;
+                // cancelEvent(replyTimer);
+                // scheduleAt(simTime(), clientTimer);
             }
+
         } else {
             if (DEBUG)
-                EV << "Block: " << rep->getBlock().getHash() << " does not contain my request: " << actualRequest->getOp().getHash() << endl;
+                EV << "Block: " << rep->getBlock().getHash() << " does not contain any of my requests" << endl;
         }
 
-    } else {
+    } /* else {
         broadcast(rep);
-    }
+    } */
+
+    broadcast(rep);
 }
 
 
@@ -1076,13 +1060,13 @@ void PBFT::addFirstBlock(){
     sequenceNumber ++;
 
     // This request is needed for initializing the actualRequest ..
-    PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTRequestMessage");
-    msg->setOp(op);
-    msg->setBitLength(PBFTREQUEST(msg));
-    actualRequest = msg->dup();
-    if(DEBUG)
-        EV << "Initial request cloned: " << actualRequest->getOp().getHash() << endl;
-    delete msg;
+    // PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTRequestMessage");
+    // msg->setOp(op);
+    // msg->setBitLength(PBFTREQUEST(msg));
+    // actualRequest = msg->dup();
+    // if(DEBUG)
+    //     EV << "Initial request cloned: " << actualRequest->getOp().getHash() << endl;
+    // delete msg;
 
 }
 

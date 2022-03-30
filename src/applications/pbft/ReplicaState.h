@@ -154,6 +154,21 @@ public:
      */
     void checkpointProcedure(int sn);
 
+    /**
+     * Removes a request from the clientRequests based on an operation in input
+     */
+    void deleteRequestFromClientRequests(Operation& op);
+
+    /**
+     * Returns the vector of client requests.
+     */
+    vector<PBFTRequestMessage> getClientRequests();
+
+    /**
+     * Add request to the client requests vector.
+     */
+    void addClientRequest(PBFTRequestMessage* req);
+
 protected:
 
 private:
@@ -170,12 +185,17 @@ private:
     std::vector<PBFTReplyMessage> replies;
     std::vector<PBFTCheckpointMessage> checkpoints;
 
+    // These are copies of the actual messages sent
+    std::vector<PBFTRequestMessage> clientRequests;
+
     const OverlayKey* overlayk;
 
     map<string,Block> candidateBlocks;
     map<string,double> timestamps;
 
     map<int, Checkpoint> checkpoints_data;
+
+
 
 };
 
