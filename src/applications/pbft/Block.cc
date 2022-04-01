@@ -15,6 +15,7 @@ Block::Block(int c){
     capacity = c;
     seqNumber = 0;
     creationTimestamp = simTime().dbl();
+    hash = computeHash(); // -> initial hash, won't be the final one.
 }
 
 Block::Block(){}

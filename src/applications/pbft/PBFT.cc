@@ -59,6 +59,9 @@ void PBFT::initializeApp(int stage){
     numUpdates = 0;
     numUpdateRequests = 0;
 
+    numCreatedRequests = 0;
+    numFulfilledRequests = 0;
+
 
     // bind our port to receive UDP packets
     bindToPort(2048);
@@ -205,6 +208,7 @@ void PBFT::handleTimerEvent(cMessage* msg) {
         // actualRequest = msg->dup();
 
         replicaStateModule->addClientRequest(msg->dup());
+        numCreatedRequests ++;
 
         sendToMyNode(msg);
         delete msg;
@@ -410,10 +414,15 @@ void PBFT::finishApp() {
     globalStatistics->addStdDev("PBFT: Sent checkpoints packets", numCheckpoints);
     globalStatistics->addStdDev("PBFT: Sent updates packets", numUpdates);
 
-    if(nodeType == REPLICAANDCLIENT){
-        EV << "Node is client: " << this->overlay->getThisNode().getKey() << endl;
-        globalStatistics->recordHistogram("PBFT: Number of clients", 1);
-    }
+    // if(nodeType == REPLICAANDCLIENT){
+    //     EV << "Node is client: " << this->overlay->getThisNode().getKey() << endl;
+    //     globalStatistics->recordHistogram("PBFT: Number of clients", 1);
+    // }
+
+    globalStatistics->recordHistogram("PBFT: Number of remaining total created requests", numCreatedRequests);
+    globalStatistics->recordHistogram("PBFT: Number of remaining requests", replicaStateModule->getClientRequestSize());
+    globalStatistics->recordHistogram("PBFT: Number of remaining completed requests", numFulfilledRequests);
+
     replicaStateModule->clearDataStructures();
 
     // if(nodeType == REPLICAANDCLIENT){
@@ -674,10 +683,15 @@ void PBFT::handlePrepareMessage(cMessage* msg){
 
     if (replicaStateModule->searchPreparedCertificate(prep)){
 
-        // get block
+        if(!replicaStateModule->isPresentCandidateBlock(prep->getDigest())){
+            return;
+        }
+
+        // Retrieve the block
         Block myBlock = replicaStateModule->getBlock(prep->getDigest());
         if(chainModule->isPresent(myBlock)){
-            EV << "Block: " << myBlock.getHash() << " already present in this blockchain" << endl;
+            if(DEBUG)
+                EV << "Block: " << myBlock.getHash() << " already present in this blockchain" << endl;
             return;
         }
 
@@ -811,6 +825,7 @@ void PBFT::handleReplyMessage(cMessage* msg){
 
                 for(size_t i = 0; i<ops.size(); i++){
                     globalStatistics->addStdDev("PBFT: Requests latency", (simTime().dbl() - ops.at(i).getTimestamp()).dbl());
+                    numFulfilledRequests ++;
 
                     // Empty the clientRequests queue
                     replicaStateModule->deleteRequestFromClientRequests(ops.at(i));

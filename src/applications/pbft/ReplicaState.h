@@ -120,7 +120,7 @@ public:
     void addCandidateBlock(PBFTPreprepareMessage* preprep);
 
 
-    bool isPresentCandidateBlock(PBFTCommitMessage* comm);
+    bool isPresentCandidateBlock(string dig);
 
 
     map<string,Block> getCandidateBlocks();
@@ -168,6 +168,8 @@ public:
      * Add request to the client requests vector.
      */
     void addClientRequest(PBFTRequestMessage* req);
+
+    int getClientRequestSize();
 
 protected:
 

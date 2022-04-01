@@ -171,6 +171,9 @@ protected:
     int numUpdates;
     int numUpdateRequests;
 
+    int numCreatedRequests;
+    int numFulfilledRequests;
+
 };
 
 

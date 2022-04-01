@@ -264,6 +264,7 @@ bool ReplicaState::seenMessage(cMessage* msg){
 bool ReplicaState::searchPreparedCertificate(PBFTPrepareMessage* m){
     int prepare_c = 0;
     int preprepare_c = 0;
+    bool minePresent = false;
 
     for(size_t i=0; i<prepares.size(); i++){
         if(strcmp(prepares.at(i).getDigest(), m->getDigest()) == 0){
@@ -271,6 +272,11 @@ bool ReplicaState::searchPreparedCertificate(PBFTPrepareMessage* m){
                 if(DEBUG)
                     EV << "prepare_c incremented" << endl;
                 prepare_c ++;
+                if(prepares.at(i).getCreatorKey() == *overlayk){
+                    minePresent = true;
+                    if(DEBUG)
+                        EV << "minePresent is true" << endl;
+                }
             }
         }
     }
@@ -285,7 +291,7 @@ bool ReplicaState::searchPreparedCertificate(PBFTPrepareMessage* m){
         }
     }
 
-    if (prepare_c >= 2*f && preprepare_c > 0){ // TODO exact match on prepare_c, maybe ge than 2f?
+    if (prepare_c >= 2*f && preprepare_c > 0/* && minePresent*/){ // TODO exact match on prepare_c, maybe ge than 2f?
         // If exact match, then only once this call will return true, helping to have less COMMIT messages in the network!?
         EV << "Found Prepared Certificate! " << endl;
         return true;
@@ -378,9 +384,11 @@ void ReplicaState::addTimestamp(PBFTPreprepareMessage* preprep){
     if (it != timestamps.end()){
         if(DEBUG)
             EV << "Timestamp already added for block: " << preprep->getBlock().getHash() << endl;
+
     } else {
         timestamps.insert(make_pair(preprep->getBlock().getHash(), simTime().dbl()));
-        EV << "Timestamp added for block: " << preprep->getBlock().getHash() << endl;
+        if(DEBUG)
+            EV << "Timestamp added for block: " << preprep->getBlock().getHash() << endl;
     }
 
 }
@@ -420,9 +428,9 @@ bool ReplicaState::checkIfCanPrepare(PBFTRequestMessage* msg){ //I could get in 
 }
 
 
-bool ReplicaState::isPresentCandidateBlock(PBFTCommitMessage* comm){
+bool ReplicaState::isPresentCandidateBlock(string dig){
 
-    map<string, Block>::iterator it = candidateBlocks.find(comm->getDigest());
+    map<string, Block>::iterator it = candidateBlocks.find(dig);
 
     if (it != candidateBlocks.end()){
         if(DEBUG)
@@ -441,7 +449,9 @@ map<string,Block> ReplicaState::getCandidateBlocks(){
 
 Block& ReplicaState::getBlock(const char* digest){
     map<string, Block>::iterator it = candidateBlocks.find(digest);
-    return it->second;
+    if (it != candidateBlocks.end()){
+        return it->second;
+    }
 }
 
 
@@ -494,7 +504,7 @@ void ReplicaState::throwGarbage(int sn){
     // TODO Can I delete also requests? -> 30% less messages in omnet
     vector <PBFTRequestMessage>::iterator mir;
     for(mir = requests.begin(); mir != requests.end();){
-        if(mir->getOp().getTimestamp() < simTime() - 10){ // TODO It was 50
+        if(mir->getOp().getTimestamp() < simTime() - 50){ // TODO It was 50
             mir = requests.erase(mir);
         }
         else{
@@ -617,5 +627,9 @@ vector<PBFTRequestMessage> ReplicaState::getClientRequests(){
 
 void ReplicaState::addClientRequest(PBFTRequestMessage* req){
     clientRequests.push_back(*req);
+}
+
+int ReplicaState::getClientRequestSize(){
+    return clientRequests.size();
 }
 
