@@ -40,6 +40,9 @@ class Block {
         int getSeqNumber(){return seqNumber;}
         size_t getBlockOpsNumber(){return operations.size();}
         double getCreationTimestamp(){return creationTimestamp;}
+        void setCreationTimestamp(double t){ creationTimestamp = t; }
+        double getInsertionTimestamp(){return insertionTimestamp;}
+        void setInsertionTimestamp(double t){ insertionTimestamp = t; }
 
         //Setters
         void setSeqNumber(int sn){seqNumber = sn;}
@@ -83,6 +86,7 @@ class Block {
         int viewNumber; // view number
 
         double creationTimestamp;
+        double insertionTimestamp;
 
         // The block must contain a list of <capacity> operations
         vector<Operation> operations;

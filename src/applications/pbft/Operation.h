@@ -16,6 +16,7 @@ class Operation {
         Operation(OverlayKey ok, IPvXAddress ip, simtime_t ts);
         Operation( const Operation& operation );
         Operation();
+        ~Operation();
 
         // Getters
         simtime_t getTimestamp(){return timestamp;}

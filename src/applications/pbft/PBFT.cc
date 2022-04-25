@@ -62,7 +62,12 @@ void PBFT::initializeApp(int stage){
     numCreatedRequests = 0;
     numFulfilledRequests = 0;
 
+    simDuration = par("simDuration");
 
+    justJoined = false;
+    reJoined = false;
+
+    numCreatedBlocks = 1;
     // bind our port to receive UDP packets
     bindToPort(2048);
 
@@ -132,27 +137,19 @@ void PBFT::changeState(States toState){
             }
 
             // Check if this is the primary, and set the state accordingly.
-            if (isPrimary()){
+            if (isPrimary() && ! reJoined){
                 nextBlock = new Block(blockCapacity);
             }
 
             // If this is the very first node in the network
-            if (this->overlay->getThisNode().getKey().toDouble() == 1){
+            if (this->overlay->getThisNode().getKey().toDouble() == 1 && ! reJoined){
                 if(DEBUG)
                     EV << "This is the first node of the network" << endl;
                 addFirstBlock();
 
-            } else {
-                // Create a fake actualRequest
-                // Operation op = Operation(OverlayKey(42), IPvXAddress("1.1.1.1"), 0);
-                // This request is needed for initializing the actualRequest ..
-                // PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTRequestMessage");
-                // msg->setOp(op);
-                // msg->setBitLength(PBFTREQUEST(msg));
-                // actualRequest = msg->dup();
-                // delete msg;
-
             }
+
+            justJoined = true;
             break;
         }
 
@@ -160,13 +157,18 @@ void PBFT::changeState(States toState){
             /**
              * The node got notified by the overlay about disconnecting.
              */
+            // cancelEvent(replyTimer);
+            // cancelEvent(clientTimer);
             state = DISCONNECTED;
+
             break;
 
         case SHUTDOWN:
             /**
              * Node has to SHUTDOWN.
              */
+            cancelEvent(replyTimer);
+            cancelEvent(clientTimer);
             state = SHUTDOWN;
             break;
 
@@ -190,6 +192,11 @@ void PBFT::handleTimerEvent(cMessage* msg) {
             return;
         }
 
+        // End simulation if
+        if(simTime().dbl() > replicaStateModule->getNodesNumber() + simDuration){
+            endSimulation();
+        }
+
         Operation op = Operation(this->overlay->getThisNode().getKey(), thisNode.getIp(), simTime());
 
         if(DEBUG)
@@ -199,26 +206,17 @@ void PBFT::handleTimerEvent(cMessage* msg) {
         msg->setOp(op);
         msg->setBitLength(PBFTREQUEST(msg));
 
-        // Remember the request for the replyTimer
-
-        // if(actualRequest){
-        //     delete actualRequest;
-        // }
-
-        // actualRequest = msg->dup();
-
-        replicaStateModule->addClientRequest(msg->dup());
+        // replicaStateModule->addClientRequest(msg->dup()); // ####
+        replicaStateModule->addClientRequest(msg);
         numCreatedRequests ++;
 
         sendToMyNode(msg);
         delete msg;
 
-        // scheduleAt(simTime() + replyDelay, replyTimer);
         scheduleAt(simTime() + requestDelay, clientTimer);
 
 
     } else if(msg == replyTimer){
-        // I know the timestamp of the request
         if(DEBUG)
             EV << "Broadcasting again queued requests. " << endl;
 
@@ -228,9 +226,7 @@ void PBFT::handleTimerEvent(cMessage* msg) {
             broadcast(&queuedReqs.at(i));
 
         }
-
-        // actualRequest->setRetryNumber(actualRequest->getRetryNumber() + 1);
-        // broadcast(actualRequest);
+        queuedReqs.clear();
 
         scheduleAt(simTime() + replyDelay, replyTimer);
 
@@ -271,6 +267,13 @@ void PBFT::handleUDPMessage(cMessage* msg) {
         EV << "[PBFT::handleUDPMessage() @ " << thisNode.getIp()
            << " Received a message"
            << endl;
+
+    if(state == SHUTDOWN || state == DISCONNECTED){
+        if(DEBUG)
+            EV << "Not ready to accept messages -> discard" << endl;
+        delete msg;
+        return;
+    }
 
     PBFTMessage *myMsg = dynamic_cast<PBFTMessage*>(msg);
     numReceived ++;
@@ -395,8 +398,14 @@ void PBFT::handleLowerMessage(cMessage* msg){
            << endl;
 
     if(msg->getKind() == KIND_READY){
-        EV << "GOT READY TO GO MESSAGE" << endl;
+        if(state == DISCONNECTED){
+            reJoined = true;
+        }
         changeState(READY);
+    } else if(msg->getKind() == KIND_SHUTDOWN){
+        changeState(SHUTDOWN);
+    } else if(msg->getKind() == KIND_DISCONNECTED){
+        changeState(DISCONNECTED);
     }
 
     delete msg;
@@ -414,20 +423,23 @@ void PBFT::finishApp() {
     globalStatistics->addStdDev("PBFT: Sent checkpoints packets", numCheckpoints);
     globalStatistics->addStdDev("PBFT: Sent updates packets", numUpdates);
 
-    // if(nodeType == REPLICAANDCLIENT){
-    //     EV << "Node is client: " << this->overlay->getThisNode().getKey() << endl;
-    //     globalStatistics->recordHistogram("PBFT: Number of clients", 1);
-    // }
+    if(nodeType == REPLICAANDCLIENT){
+        globalStatistics->recordHistogram("PBFT: Number of total created requests", numCreatedRequests);
+        globalStatistics->recordHistogram("PBFT: Number of remaining requests", replicaStateModule->getClientRequestSize());
+        globalStatistics->recordHistogram("PBFT: Number of completed requests", numFulfilledRequests);
+    }
 
-    globalStatistics->recordHistogram("PBFT: Number of remaining total created requests", numCreatedRequests);
-    globalStatistics->recordHistogram("PBFT: Number of remaining requests", replicaStateModule->getClientRequestSize());
-    globalStatistics->recordHistogram("PBFT: Number of remaining completed requests", numFulfilledRequests);
+    if(simTime().dbl() > replicaStateModule->getNodesNumber() + simDuration){
+        globalStatistics->recordHistogram("PBFT: Final blockchain data" , chainModule->getBlockchainLength());
+        globalStatistics->recordHistogram("PBFT: CandidateBlocks length" , replicaStateModule->getCandidateBlocksLength());
+
+    }
+    if(isPrimary()){
+        globalStatistics->recordScalar("Number of created blocks", numCreatedBlocks);
+    }
 
     replicaStateModule->clearDataStructures();
 
-    // if(nodeType == REPLICAANDCLIENT){
-    //     delete actualRequest;
-    // }
 
 }
 
@@ -458,6 +470,7 @@ void PBFT::handleRequestMessage(cMessage* msg){
     if (replicaStateModule->seenMessage(req)){
         if(DEBUG)
             EV << "Request: " << req->getOp().getHash() << " already seen -- retryNumber: " << req->getRetryNumber() << endl;
+
         if(blockIndex != -1){
             // broadcast reply (with the same increased retryNumber)
 
@@ -481,14 +494,12 @@ void PBFT::handleRequestMessage(cMessage* msg){
 
         }
 
-        // delete req;
         return;
     }
 
-    // TODO Discard requests with a lower timestamp than the last reply timestamp sent to this client -> exactly once semantics.
-
     // Insert into log, save things like digest, sender, etc
     replicaStateModule->addToRequestsLog(req);
+    onDemandPrePrepare(req); // TODO To call in any case ..? In case I accept this request.
 
     // Gossip the request
     broadcast(req);
@@ -498,7 +509,6 @@ void PBFT::handleRequestMessage(cMessage* msg){
     if(blockIndex != -1){
 
         Block bl = chainModule->getBlockByIndex(blockIndex);
-
         PBFTReplyMessage* reply_msg = new PBFTReplyMessage("PBFTReplyMessage");
 
         reply_msg->setView(replicaStateModule->getCurrentView());
@@ -538,26 +548,29 @@ void PBFT::handleRequestMessage(cMessage* msg){
             nextBlock->setSeqNumber(sequenceNumber);
             nextBlock->setViewNumber(replicaStateModule->getCurrentView());
             nextBlock->setPrevBlockHash(chainModule->getLastBlockHash());
+            nextBlock->setCreationTimestamp(simTime().dbl());
 
             PBFTPreprepareMessage* preprepare_msg = new PBFTPreprepareMessage("PBFTPreprepareMessage");
             preprepare_msg->setView(replicaStateModule->getCurrentView());
             preprepare_msg->setSeqNumber(sequenceNumber);
             preprepare_msg->setDigest(nextBlock->computeHash().c_str());
             preprepare_msg->setBlock(*nextBlock);
-
+            preprepare_msg->setCreatorAddress(thisNode);
+            preprepare_msg->setCreatorKey(overlay->getThisNode().getKey());
             preprepare_msg->setBitLength(PBFTPREPREPARE(preprepare_msg));
 
-            // broadcast(preprepare_msg); // Why also broadcast?
             sendToMyNode(preprepare_msg);
 
             delete preprepare_msg;
 
             // clear nextBlock
             nextBlock = new Block(blockCapacity);
+            numCreatedBlocks ++;
+
+            if(DEBUG)
+                EV << "Created new block by the primary -> hash: " << nextBlock->getHash() << endl;
         }
     }
-
-    onDemandPrePrepare(req); // TODO To call in any case ..? In case I accept this request.
 }
 
 
@@ -566,26 +579,20 @@ void PBFT::handlePreprepareMessage(cMessage* msg){
     PBFTPreprepareMessage *preprep = dynamic_cast<PBFTPreprepareMessage*>(msg);
 
     /**
-     * I have to reason with blocks now.
      * A replica accepts this block if:
      *      - it has same view
-     *      - message is authentic -> not controlled by us
      *      - n between h and H
-     *      - the replica has not accepted a PRE-PREPARE block with
+     *      - the replica has not accepted a PREPREPARE block with
      *          same view and seqNumber, but with different digest.
      *
      * Once accepted:
-     *      - enters the prepare phase
-     *      - adds m in its log !? TODO -> also the original message comes with the PREPREPARE message
      *      - multicasts a PREPARE message
      */
 
-    // Check if already processed this message?
+    // Check if already processed this message
     if (replicaStateModule->seenMessage(preprep)){
         if(DEBUG)
             EV << "Preprepare already seen - Preprepare not processed -- returning " << endl;
-
-        delete preprep;
         return;
     }
 
@@ -621,8 +628,6 @@ void PBFT::handlePreprepareMessage(cMessage* msg){
 
     replicaStateModule->addTimestamp(preprep);
 
-    // If the replica does not have the message in the log what happens? TODO
-
     // Need to check if I have in my log all the operations contained in the block.
     bool canPrepare = true;
 
@@ -635,7 +640,7 @@ void PBFT::handlePreprepareMessage(cMessage* msg){
         }
     }
 
-    if (canPrepare){
+    if (canPrepare || justJoined){
 
         // multicast a PREPARE message
         if(DEBUG)
@@ -649,7 +654,6 @@ void PBFT::handlePreprepareMessage(cMessage* msg){
         prepare_msg->setCreatorKey(overlay->getThisNode().getKey());
         prepare_msg->setBitLength(PBFTPREPARE(prepare_msg));
 
-        // broadcast(prepare_msg);
         sendToMyNode(prepare_msg);
         delete prepare_msg;
 
@@ -669,7 +673,6 @@ void PBFT::handlePrepareMessage(cMessage* msg){
     if (replicaStateModule->seenMessage(prep)){
         if(DEBUG)
             EV << "Prepare already seen - Prepare not processed -- returning " << endl;
-        // delete prep;
         return;
     }
 
@@ -703,7 +706,6 @@ void PBFT::handlePrepareMessage(cMessage* msg){
         commit_msg->setCreatorKey(overlay->getThisNode().getKey());
         commit_msg->setBitLength(PBFTCOMMIT(commit_msg));
 
-        // broadcast(commit_msg);
         sendToMyNode(commit_msg);
         delete commit_msg;
     }
@@ -711,34 +713,34 @@ void PBFT::handlePrepareMessage(cMessage* msg){
 
 
 void PBFT::handleCommitMessage(cMessage* msg){
+
     PBFTCommitMessage* comm = dynamic_cast<PBFTCommitMessage*>(msg);
-    if(DEBUG)
-        EV << "Received new COMMIT message " << endl;
 
     if (replicaStateModule->seenMessage(comm)){
         if(DEBUG)
-            EV << "Commit already seen - Commit not processed -- returning " << endl;
-        // delete comm;
+            EV << "Commit already seen -> return. " << endl;
         return;
     }
 
     replicaStateModule->addToCommitsLog(comm);
 
-    // Gossip the message If I see it for the first time, and the request is not mine
+    // Gossip the message
     broadcast(comm);
 
     if(replicaStateModule->searchCommittedCertificate(comm)){
 
-        // get block
+        // Retrieve the block
         Block myBlock = replicaStateModule->getBlock(comm->getDigest());
 
         if(chainModule->isPresent(myBlock)){
-            EV << "Block: " << myBlock.getHash() << " already present in this blockchain" << endl;
             return;
         }
 
         bool canExecute = true;
-        // TODO add the block if all the blocks with a lower seqNumber were added. How? Are we sure about this?
+
+
+
+
 
         map<string, Block> candidateBlocks = replicaStateModule->getCandidateBlocks();
         map<string, Block>::iterator cb;
@@ -756,9 +758,18 @@ void PBFT::handleCommitMessage(cMessage* msg){
             }
         }
 
+        if(chainModule->missingBlocks(myBlock.getSeqNumber())){
+            if(DEBUG)
+                EV << "Have to wait before executing this block ..." << endl;
+            canExecute = false;
+        }
+
         if(canExecute){
             // Ready to commit/execute
+            myBlock.setInsertionTimestamp(simTime().dbl());
             chainModule->addBlock(myBlock);
+
+            justJoined = false;
 
             double insertionTimestamp = replicaStateModule->getTimestamp(myBlock.getHash());
             double insertionTimestamp2 = myBlock.getCreationTimestamp();
@@ -770,7 +781,7 @@ void PBFT::handleCommitMessage(cMessage* msg){
             }
 
             PBFTReplyMessage* reply_msg = new PBFTReplyMessage("PBFTReplyMessage");
-            // vector<Operation> const & ops = myBlock.getOperations();
+
             reply_msg->setReplicaNumber(this->overlay->getThisNode().getKey());
             reply_msg->setCreatorAddress(thisNode);
             reply_msg->setCreatorKey(overlay->getThisNode().getKey());
@@ -804,8 +815,7 @@ void PBFT::handleReplyMessage(cMessage* msg){
 
     if(replicaStateModule->seenMessage(rep)){
         if(DEBUG)
-            EV << "Reply already seen - Reply not processed -- returning " << endl;
-        // delete rep;
+            EV << "Reply already seen -> return." << endl;
         return;
     }
 
@@ -813,37 +823,36 @@ void PBFT::handleReplyMessage(cMessage* msg){
 
     if (nodeType == REPLICAANDCLIENT){
 
+        // Get client's operations from the block
         vector<Operation> ops = rep->getBlock().getOpsByCreator(this->overlay->getThisNode().getKey());
 
         if (ops.size() > 0){
             if(DEBUG)
-                EV << "Received block with " << ops.size() << " operations inside" << endl;
+                EV << "Block has " << ops.size() << " operations created by this client" << endl;
 
             if(replicaStateModule->searchReplyCertificate(rep)){
                 if(DEBUG)
-                    EV << "Found reply certificate for block" << rep->getBlock().getHash() << endl;
+                    EV << "Found reply certificate for block " << rep->getBlock().getHash() << endl;
 
                 for(size_t i = 0; i<ops.size(); i++){
-                    globalStatistics->addStdDev("PBFT: Requests latency", (simTime().dbl() - ops.at(i).getTimestamp()).dbl());
+                    globalStatistics->addStdDev("PBFT: Requests latency", (simTime().dbl() - ops.at(i).getTimestamp().dbl()));
+                    globalStatistics->recordHistogram("PBFT: Requests latency", (simTime().dbl() - ops.at(i).getTimestamp().dbl()));
+
                     numFulfilledRequests ++;
 
                     // Empty the clientRequests queue
                     replicaStateModule->deleteRequestFromClientRequests(ops.at(i));
-
                 }
 
-                // cancelEvent(replyTimer);
-                // scheduleAt(simTime(), clientTimer);
+                cancelEvent(replyTimer);
+                scheduleAt(simTime() + replyDelay, replyTimer);
             }
 
         } else {
             if (DEBUG)
                 EV << "Block: " << rep->getBlock().getHash() << " does not contain any of my requests" << endl;
         }
-
-    } /* else {
-        broadcast(rep);
-    } */
+    }
 
     broadcast(rep);
 }
@@ -922,18 +931,13 @@ void PBFT::handleUpdateMessage(cMessage* msg){
         H = update->getHighH();
         replicaStateModule->setCurrentView(update->getView());
         sequenceNumber = update->getSeqNumber();
-        EV << "More recent data blockchain length: " << update->getBlockchain_length() << endl;
-        EV << "Actual state: " << state << endl;
 
         // Update blockchain -> schifezza
         cModule* module = simulation.getModule(update->getBlockchainModuleId());
 
         if(module && dynamic_cast<Blockchain*>(module)) {
             Blockchain* v = check_and_cast<Blockchain*>(module);
-            EV << "Other blockchain length: " << v->getBlockchainLength() << endl;
             vector<Block> blocchetti = v->getBlocks();
-            EV << "Other blockchain length blocchetti: " << blocchetti.size() << endl;
-
             chainModule->updateBlockchain(blocchetti);
         }
     }
@@ -984,11 +988,7 @@ void PBFT::onDemandCommit(int sn){
 
             // get block
             Block myBlock = replicaStateModule->getBlock(comms.at(j).getDigest());
-
             if(chainModule->isPresent(myBlock)){
-                if(DEBUG)
-                    EV << "Block: " << myBlock.getHash() << " already present in this blockchain" << endl;
-                // return; // -> wrong
                 continue;
             }
 
@@ -1010,14 +1010,28 @@ void PBFT::onDemandCommit(int sn){
                 }
             }
 
+            if(chainModule->missingBlocks(myBlock.getSeqNumber())){
+                if(DEBUG)
+                    EV << "Have to wait before executing this block ..." << endl;
+                canExecute = false;
+            }
+
             if(canExecute){
                 // Ready to commit/execute
+                myBlock.setInsertionTimestamp(simTime().dbl());
                 chainModule->addBlock(myBlock);
 
                 double insertionTimestamp = replicaStateModule->getTimestamp(myBlock.getHash());
                 double insertionTimestamp2 = myBlock.getCreationTimestamp();
                 globalStatistics->addStdDev("PBFT: Blocks latency (when received)", (simTime().dbl() - insertionTimestamp));
                 globalStatistics->addStdDev("PBFT: Blocks latency (when created)", (simTime().dbl() - insertionTimestamp2));
+
+                if(DEBUG){
+                    EV << "Committing block created at: " << myBlock.getCreationTimestamp()
+                            << ". Now is time: " << simTime()
+                            << "Block received at: " << insertionTimestamp
+                            << endl;
+                }
 
                 if(comms.at(j).getSeqNumber() % checkpointPeriod == 0){
                     createCheckpoint(comms.at(j).getSeqNumber());
@@ -1069,20 +1083,7 @@ void PBFT::addFirstBlock(){
     initialBlock->addOperation(op);
     initialBlock->setSeqNumber(sequenceNumber);
     initialBlock->setViewNumber(replicaStateModule->getCurrentView());
-
-
     chainModule->addBlock(*initialBlock);
-    sequenceNumber ++;
-
-    // This request is needed for initializing the actualRequest ..
-    // PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTRequestMessage");
-    // msg->setOp(op);
-    // msg->setBitLength(PBFTREQUEST(msg));
-    // actualRequest = msg->dup();
-    // if(DEBUG)
-    //     EV << "Initial request cloned: " << actualRequest->getOp().getHash() << endl;
-    // delete msg;
-
 }
 
 void PBFT::updateMessageStats(PBFTMessage* m){

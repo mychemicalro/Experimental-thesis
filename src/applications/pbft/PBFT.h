@@ -66,8 +66,10 @@ public:
     };
 
     ~PBFT() {
-        cancelAndDelete(clientTimer);
-
+        if (nodeType == REPLICAANDCLIENT){
+            cancelAndDelete(clientTimer);
+            cancelAndDelete(replyTimer);
+        }
     };
 
     enum States {
@@ -91,6 +93,9 @@ public:
 
     enum Kinds {
         KIND_READY = 1,
+        KIND_SHUTDOWN = 2,
+        KIND_DISCONNECTED = 3,
+
     };
 
 
@@ -173,6 +178,13 @@ protected:
 
     int numCreatedRequests;
     int numFulfilledRequests;
+    int numCreatedBlocks;
+
+    int simDuration;
+
+    bool justJoined;
+    bool reJoined;
+
 
 };
 

@@ -12,9 +12,14 @@
 #define DEBUG true
 
 Block::Block(int c){
+    stringstream ss;
+    ss << "pre_hash";
+    prevBlockHash = sha256(ss.str());
+
     capacity = c;
     seqNumber = 0;
     creationTimestamp = simTime().dbl();
+    insertionTimestamp = 0;
     hash = computeHash(); // -> initial hash, won't be the final one.
 }
 
@@ -29,7 +34,7 @@ string Block::computeHash() {
         ss << operations.at(i).cHash();
     }
 
-    ss << prevBlockHash;
+    ss << prevBlockHash << creationTimestamp;
     hash = sha256(ss.str());
 
     return hash;
@@ -72,6 +77,7 @@ Block::Block( const Block& block ){
     prevBlockHash = block.prevBlockHash;
     operations = block.operations;
     creationTimestamp = block.creationTimestamp;
+    insertionTimestamp = block.insertionTimestamp;
 }
 
 bool Block::containsOp(Operation& op){

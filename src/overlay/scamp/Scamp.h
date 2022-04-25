@@ -24,6 +24,9 @@ class Scamp : public BaseOverlay {
 
     enum Kinds {
         KIND_READY = 1,
+        KIND_SHUTDOWN = 2,
+        KIND_DISCONNECTED = 3,
+
     };
 
     int joinRequestCopies;

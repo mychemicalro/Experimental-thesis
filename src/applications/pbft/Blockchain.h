@@ -14,7 +14,8 @@
 #include <InitStages.h>
 #include "Block.h"
 #include "GlobalStatisticsAccess.h"
-
+#include <fstream>
+#include <sstream>
 
 /**
  * This class must store a node's blockchain.
@@ -70,6 +71,17 @@ public:
 
     vector<Block> getBlocks();
 
+    /**
+     * Prints the blockchain stored on this node on an external file.
+     *
+     */
+    void printChain();
+
+    /**
+     * Returns true if there are missing blocks in the blockchain up to seqNum
+     */
+    bool missingBlocks(int seqNum);
+
 
 protected:
 
@@ -88,9 +100,12 @@ private:
     vector<Block> blocks;
     const OverlayKey* overlayk;
     int blockchain_length; /* Blockchain length */
-    int operations_number; /* Number of ops stored in the blockchain*/
+    int operations_number; /* Number of ops stored in the blockchain */
+    double creation_time; /* When this blockchain was created by this node */
 
     GlobalStatistics* globalStatistics;
+
+    std::ofstream outfile;
 
 };
 

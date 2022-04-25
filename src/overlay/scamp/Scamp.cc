@@ -245,6 +245,13 @@ void Scamp::changeState(int toState) {
             scheduleAt(simTime() + joinDelay, join_timer);
             setOverlayReady(false);
 
+            // notify PBFT
+            cPacket* disconnected = new cPacket("KIND_DISCONNECTED", KIND_DISCONNECTED);
+            handleAppMessage(disconnected);
+            if(DEBUG){
+                EV << "Notify the application about disconnection. " << endl;
+            }
+
             break;
         }
 
@@ -1051,6 +1058,13 @@ void Scamp::handleNodeGracefulLeaveNotification(){
     // delete views
     inViewModule->clearView();
     partialViewModule->clearView();
+
+    // notify PBFT
+    cPacket* shutdown = new cPacket("KIND_SHUTDOWN", KIND_SHUTDOWN);
+    handleAppMessage(shutdown);
+    if(DEBUG){
+        EV << "Notify the application about shutdown. " << endl;
+    }
 
     changeState(SHUTDOWN);
 

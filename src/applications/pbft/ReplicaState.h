@@ -106,7 +106,7 @@ public:
     bool searchReplyCertificate(PBFTReplyMessage* m);
 
     /**
-     * Check if the replica hash accepted another prepare with same seqNum and view but with different digest
+     * Check if the replica has accepted another prepare with same seqNum and view but with different digest
      */
     bool otherPreprepareAccepted(PBFTPreprepareMessage* msg);
 
@@ -170,6 +170,8 @@ public:
     void addClientRequest(PBFTRequestMessage* req);
 
     int getClientRequestSize();
+
+    size_t getCandidateBlocksLength();
 
 protected:
 

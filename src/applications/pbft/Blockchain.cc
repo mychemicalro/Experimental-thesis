@@ -30,6 +30,7 @@ void Blockchain::initializeChain(const OverlayKey* ok) {
     this->overlayk = ok;
     blockchain_length = 0;
     operations_number = 0;
+    creation_time = simTime().dbl();
 
     WATCH(blockchain_length);
     WATCH(operations_number);
@@ -76,6 +77,8 @@ void Blockchain::finish(){
     // globalStatistics->addStdDev("Blockchain: length", blockchain_length);
     globalStatistics->addStdDev("Blockchain: operations", operations_number);
 
+    printChain();
+
 }
 
 size_t Blockchain::isPresentOp(Operation& op){
@@ -84,7 +87,7 @@ size_t Blockchain::isPresentOp(Operation& op){
            << " Operation: " << op.getHash()<< endl;
 
     for (size_t i=0; i<blocks.size(); i++){
-        EV << "Block: " << blocks.at(i).getHash() << endl;
+        // EV << "Block: " << blocks.at(i).getHash() << endl;
         if(blocks.at(i).containsOp(op)){
             if (DEBUG)
                 EV << "Operation found" << endl;
@@ -126,6 +129,39 @@ vector<Block> Blockchain::getBlocks(){
     return res;
 }
 
+void Blockchain::printChain(){
+
+    // generate external file name
+    outfile.open(overlayk->toString().c_str(), std::ios_base::trunc); // append instead of overwrite (app for append)
+
+    outfile << "Creation time: " << creation_time << "\n";
+    outfile << "Length: " << blockchain_length << "\n";
+    outfile << "Operations: " << operations_number << "\n";
+    if(blocks.size() > 0){
+        outfile << "Blocks latency: " << blocks.at(blocks.size()-1).getCreationTimestamp() / blockchain_length << "\n";
+    }
+    // print the blocks data
+    for(size_t i=0; i<blocks.size(); i++){
+        outfile << blocks.at(i).getHash() << ":" << blocks.at(i).getCreationTimestamp() << ":" << blocks.at(i).getInsertionTimestamp() << ":" << blocks.at(i).getSeqNumber() << "\n";
+    }
+    outfile << "Shutdown time: " << simTime().dbl() << "\n";
+
+    outfile.close();
+}
+
+bool Blockchain::missingBlocks(int seqNum){
+    size_t n = blocks.size();
+    if(seqNum - blocks.at(n-1).getSeqNumber() > 1){
+        return true;
+    }
+
+    for(size_t i=0; i<n-1; i++){
+        if(blocks.at(i+1).getSeqNumber() - blocks.at(i).getSeqNumber() > 1){
+            return true;
+        }
+    }
+    return false;
+}
 
 
 
