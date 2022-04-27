@@ -16,6 +16,7 @@
 #include "GlobalStatisticsAccess.h"
 #include <fstream>
 #include <sstream>
+#include <iostream>
 
 /**
  * This class must store a node's blockchain.
@@ -106,6 +107,8 @@ private:
     GlobalStatistics* globalStatistics;
 
     std::ofstream outfile;
+
+    int iter;
 
 };
 

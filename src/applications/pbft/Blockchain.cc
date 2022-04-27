@@ -19,6 +19,7 @@ void Blockchain::initialize(int stage) {
     // are registered, address auto-assignment takes place etc.
     if(stage != MIN_STAGE_OVERLAY)
         return;
+    iter = par("iter");
 }
 
 void Blockchain::handleMessage(cMessage* msg){
@@ -131,8 +132,11 @@ vector<Block> Blockchain::getBlocks(){
 
 void Blockchain::printChain(){
 
+    stringstream ss;
+    ss << iter << "_" << overlayk->toString();
+
     // generate external file name
-    outfile.open(overlayk->toString().c_str(), std::ios_base::trunc); // append instead of overwrite (app for append)
+    outfile.open(ss.str().c_str(), std::ios_base::trunc); // append instead of overwrite (app for append)
 
     outfile << "Creation time: " << creation_time << "\n";
     outfile << "Length: " << blockchain_length << "\n";

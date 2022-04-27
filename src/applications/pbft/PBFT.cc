@@ -157,8 +157,15 @@ void PBFT::changeState(States toState){
             /**
              * The node got notified by the overlay about disconnecting.
              */
-            // cancelEvent(replyTimer);
-            // cancelEvent(clientTimer);
+
+/*
+            if(replyTimer->isScheduled()){
+                cancelEvent(replyTimer);
+            }
+            if(clientTimer->isScheduled()){
+                cancelEvent(clientTimer);
+            }
+*/
             state = DISCONNECTED;
 
             break;
@@ -167,8 +174,15 @@ void PBFT::changeState(States toState){
             /**
              * Node has to SHUTDOWN.
              */
-            cancelEvent(replyTimer);
-            cancelEvent(clientTimer);
+
+/*
+            if(replyTimer->isScheduled()){
+                // cancelEvent(replyTimer);
+            }
+            if(clientTimer->isScheduled()){
+                // cancelEvent(clientTimer);
+            }
+*/
             state = SHUTDOWN;
             break;
 

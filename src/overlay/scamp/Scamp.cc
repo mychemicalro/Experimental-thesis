@@ -242,7 +242,10 @@ void Scamp::changeState(int toState) {
             joinRetry = par("joinRetry");
 
             // take(join_timer);
-            scheduleAt(simTime() + joinDelay, join_timer);
+            if(! join_timer->isScheduled()){
+                scheduleAt(simTime() + joinDelay, join_timer);
+            }
+            // scheduleAt(simTime() + joinDelay, join_timer);
             setOverlayReady(false);
 
             // notify PBFT

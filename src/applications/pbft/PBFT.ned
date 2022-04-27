@@ -19,6 +19,7 @@ import oversim.common.BaseApp;
 
 simple Blockchain{
 	@display("i=block/buffer");
+	int iter = default(0);		// needed for printing
 }
 
 simple ReplicaState{
