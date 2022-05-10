@@ -45,7 +45,7 @@ void MyChurn::initializeChurn(){
     endSimulationTimer = new cMessage("endSimulationTimer");
 
     measureJoinOpsTimer = new cMessage("measureJoinOpsTimer");
-    scheduleAt(simTime() + 10, measureJoinOpsTimer);
+    scheduleAt(simTime() + 5, measureJoinOpsTimer);
 
     leaseTimer = new cMessage("leaseTimer");
 
@@ -232,7 +232,7 @@ void MyChurn::handleMessage(cMessage* msg){
 
         cancelEvent(measureJoinOpsTimer);
         cOV_JoinerOps.record(joinOps);
-        scheduleAt(simTime() + 10, measureJoinOpsTimer);
+        scheduleAt(simTime() + 5, measureJoinOpsTimer);
 
     } else if(msg == leaseTimer) {
 

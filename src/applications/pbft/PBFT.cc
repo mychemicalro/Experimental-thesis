@@ -357,8 +357,6 @@ void PBFT::update(const NodeHandle& node, bool joined){
 
     }
 
-    // TODO Understand what are the next steps eventually
-
 }
 
 void PBFT::broadcast(cMessage* msg){
@@ -513,7 +511,7 @@ void PBFT::handleRequestMessage(cMessage* msg){
 
     // Insert into log, save things like digest, sender, etc
     replicaStateModule->addToRequestsLog(req);
-    onDemandPrePrepare(req); // TODO To call in any case ..? In case I accept this request.
+    onDemandPrePrepare(req);
 
     // Gossip the request
     broadcast(req);
@@ -567,7 +565,8 @@ void PBFT::handleRequestMessage(cMessage* msg){
             PBFTPreprepareMessage* preprepare_msg = new PBFTPreprepareMessage("PBFTPreprepareMessage");
             preprepare_msg->setView(replicaStateModule->getCurrentView());
             preprepare_msg->setSeqNumber(sequenceNumber);
-            preprepare_msg->setDigest(nextBlock->computeHash().c_str());
+            // preprepare_msg->setDigest(nextBlock->computeHash().c_str());
+            preprepare_msg->setDigest(nextBlock->getHash().c_str());
             preprepare_msg->setBlock(*nextBlock);
             preprepare_msg->setCreatorAddress(thisNode);
             preprepare_msg->setCreatorKey(overlay->getThisNode().getKey());
