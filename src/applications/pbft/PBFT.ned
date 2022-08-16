@@ -40,6 +40,9 @@ simple PBFT extends BaseApp
         double clientProb = default(0.5); 				// the probability a node is also a client
         int checkpointPeriod = default(16); 			// PBFT K parameter  
         int simDuration = default(200); 					// Simulation duration 
+        int endRequestsLoad = default(0); 				// simulation time before ending the simulation when to stop the load. If 
+        													// the simulation has to stop when t=300, the clients will stop submitting
+        													// requests when t>250. 
 }
 
 import oversim.common.ITier;

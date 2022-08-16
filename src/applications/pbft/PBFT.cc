@@ -14,7 +14,7 @@
 #include "Blockchain.h"
 #include "ReplicaState.h"
 
-#define DEBUG true
+#define DEBUG false
 
 Define_Module(PBFT);
 
@@ -63,11 +63,14 @@ void PBFT::initializeApp(int stage){
     numFulfilledRequests = 0;
 
     simDuration = par("simDuration");
+    endRequestsLoad = par("endRequestsLoad");
 
     justJoined = false;
     reJoined = false;
 
     numCreatedBlocks = 1;
+    creationTimestamps.setName("Primary blocks creation timestamps");
+
     // bind our port to receive UDP packets
     bindToPort(2048);
 
@@ -183,6 +186,7 @@ void PBFT::changeState(States toState){
                 // cancelEvent(clientTimer);
             }
 */
+
             state = SHUTDOWN;
             break;
 
@@ -211,37 +215,46 @@ void PBFT::handleTimerEvent(cMessage* msg) {
             endSimulation();
         }
 
-        Operation op = Operation(this->overlay->getThisNode().getKey(), thisNode.getIp(), simTime());
+        if ((replicaStateModule->getNodesNumber() + simDuration - simTime().dbl()) > endRequestsLoad){
+            if (state != DISCONNECTED && state != SHUTDOWN){
+                Operation op = Operation(this->overlay->getThisNode().getKey(), thisNode.getIp(), simTime());
 
-        if(DEBUG)
-            EV << "Client sending operation: " << op.getHash() << " at: " << simTime() << endl;
+                if(DEBUG)
+                    EV << "Client sending operation: " << op.getHash() << " at: " << simTime() << endl;
 
-        PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTRequestMessage");
-        msg->setOp(op);
-        msg->setBitLength(PBFTREQUEST(msg));
+                PBFTRequestMessage* msg = new PBFTRequestMessage("PBFTRequestMessage");
+                msg->setOp(op);
+                msg->setBitLength(PBFTREQUEST(msg));
 
-        // replicaStateModule->addClientRequest(msg->dup()); // ####
-        replicaStateModule->addClientRequest(msg);
-        numCreatedRequests ++;
+                // replicaStateModule->addClientRequest(msg->dup()); // ####
+                replicaStateModule->addClientRequest(msg);
+                numCreatedRequests ++;
 
-        sendToMyNode(msg);
-        delete msg;
+                sendToMyNode(msg);
+                delete msg;
+            }
+        }
 
         scheduleAt(simTime() + requestDelay, clientTimer);
 
 
     } else if(msg == replyTimer){
-        if(DEBUG)
-            EV << "Broadcasting again queued requests. " << endl;
+        if ((replicaStateModule->getNodesNumber() + simDuration - simTime().dbl()) > endRequestsLoad){
+            if (state != DISCONNECTED && state != SHUTDOWN){
+                if(DEBUG)
+                    EV << "Broadcasting again queued requests. " << endl;
 
-        vector<PBFTRequestMessage> queuedReqs = replicaStateModule->getClientRequests();
-        for(size_t i=0; i<queuedReqs.size(); i++){
-            queuedReqs.at(i).setRetryNumber(queuedReqs.at(i).getRetryNumber() + 1);
-            broadcast(&queuedReqs.at(i));
-
+                vector<PBFTRequestMessage> queuedReqs = replicaStateModule->getClientRequests();
+                for(size_t i=0; i<queuedReqs.size(); i++){
+                    if (queuedReqs.at(i).getRetryNumber() > 5){
+                        continue;
+                    }
+                    queuedReqs.at(i).setRetryNumber(queuedReqs.at(i).getRetryNumber() + 1);
+                    broadcast(&queuedReqs.at(i));
+                }
+                queuedReqs.clear();
+            }
         }
-        queuedReqs.clear();
-
         scheduleAt(simTime() + replyDelay, replyTimer);
 
     } else {
@@ -411,7 +424,7 @@ void PBFT::handleLowerMessage(cMessage* msg){
 
     if(msg->getKind() == KIND_READY){
         if(state == DISCONNECTED){
-            reJoined = true;
+            // reJoined = true;
         }
         changeState(READY);
     } else if(msg->getKind() == KIND_SHUTDOWN){
@@ -562,6 +575,9 @@ void PBFT::handleRequestMessage(cMessage* msg){
             nextBlock->setPrevBlockHash(chainModule->getLastBlockHash());
             nextBlock->setCreationTimestamp(simTime().dbl());
 
+            // Save the creation time in the .vec file.
+            creationTimestamps.record(simTime().dbl());
+
             PBFTPreprepareMessage* preprepare_msg = new PBFTPreprepareMessage("PBFTPreprepareMessage");
             preprepare_msg->setView(replicaStateModule->getCurrentView());
             preprepare_msg->setSeqNumber(sequenceNumber);
@@ -573,6 +589,7 @@ void PBFT::handleRequestMessage(cMessage* msg){
             preprepare_msg->setBitLength(PBFTPREPREPARE(preprepare_msg));
 
             sendToMyNode(preprepare_msg);
+
 
             delete preprepare_msg;
 
@@ -611,8 +628,7 @@ void PBFT::handlePreprepareMessage(cMessage* msg){
 
     // I have to gossip it -> Gossip the preprepare in any case? (Like different view, wrong seqNum) TODO
     // If I am not the primary, I can broadcast it since the primary has already broadcasted the PREPREPARE
-
-    broadcast(preprep);
+    // broadcast(preprep);
 
     if (replicaStateModule->getCurrentView() != preprep->getView()){
         if(DEBUG)
@@ -632,6 +648,8 @@ void PBFT::handlePreprepareMessage(cMessage* msg){
             EV << "Already accepted PREPREPARE message for seqNum: " << preprep->getSeqNumber() << " and view: " << preprep->getView() << endl;
         return;
     }
+    // It was above
+    broadcast(preprep);
 
     // Now the replica is ready to accept the PREPREPARE message
     if(DEBUG)

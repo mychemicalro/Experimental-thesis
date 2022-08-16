@@ -181,9 +181,12 @@ protected:
     int numCreatedBlocks;
 
     int simDuration;
+    int endRequestsLoad;
 
     bool justJoined;
     bool reJoined;
+
+    cOutVector creationTimestamps;
 
 
 };

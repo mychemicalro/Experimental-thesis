@@ -12,6 +12,7 @@
 #include <NodeHandle.h>
 #include <fstream>
 #include <sstream>
+#include <iostream>
 #include "GlobalStatisticsAccess.h"
 #include "GlobalNodeListAccess.h"
 #include "View.h"
@@ -42,7 +43,6 @@ class ScampConnectivityProbe : public cSimpleModule
     private:
         GlobalStatistics* globalStatistics;
         GlobalNodeList* globalNodesList;
-        GlobalParameters* globalParameters;
 
         ScampTopology Topology;
         ScampTopology InTopology;
@@ -80,6 +80,7 @@ class ScampConnectivityProbe : public cSimpleModule
         unsigned int getComponentSize(OverlayKey key);
         int getWeakComponents(OverlayKey key);
         double R;
+        int dag_id;
 
         // statistics
         cOutVector cOV_NodeCount;
@@ -88,14 +89,11 @@ class ScampConnectivityProbe : public cSimpleModule
         cOutVector cOV_InitialNodes;
         cOutVector cOV_WeakComponents;
         cOutVector cOV_TotalHeartbeats;
-        cOutVector cOV_emptyInView;
-        cOutVector cOV_emptyPartialView;
-        cOutVector cOV_emptyBothViews;
         cOutVector cOV_avgPartialViewSize;
-        cOutVector cOV_avgInViewSize;
         cOutVector cOV_LeafsNumber;
 
         std::ofstream outfile;
+        std::stringstream ss;
 };
 
 #endif

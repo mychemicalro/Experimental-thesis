@@ -1,50 +1,49 @@
 /*
- * MyChurn.cc
+ * MyIntermittentChurn.cc
  *
- *  Created on: 27/dic/2021
+ *  Created on: 08/giu/2022
  *      Author: DinuFC
  */
 
-#include <assert.h>
 
+
+#include <assert.h>
 #include <TransportAddress.h>
 #include <GlobalStatistics.h>
 #include <GlobalStatisticsAccess.h>
 #include <UnderlayConfigurator.h>
+#include <MyIntermittentChurn.h>
 
-#include <MyChurn.h>
+Define_Module(MyIntermittentChurn);
 
-Define_Module(MyChurn);
 
-/**
- * I need to simulate the paper experiment.
- * Need to have three phases, init, churn and stability.
- * In the init phase I will create the overlay reaching N nodes.
- * Then I will apply the churning with some churnRate C.
- * Finally, I will have a stability period.
- */
-
-void MyChurn::initializeChurn(){
+void MyIntermittentChurn::initializeChurn(){
 
     Enter_Method_Silent();
     churnRate = par("churnRate");
     churnInterval = par("churnInterval");
     createInterval = par("createInterval");
     endSimulationInterval = par("endSimulationInterval");
+    intervalBetweenChurnPeriods = par("intervalBetweenChurnPeriods");
+
     joiners = par("joiners");
     leavers = par("leavers");
+    rounds = par("rounds");
+    doneRounds = 0;
+
     stopSimulation = par("stopSimulation");
     permanentNodes = par("permanentNodes");
     churnTimer = new cMessage("churnTimer");
     createTimer = new cMessage("createTimer");
     scheduleAt(simTime() + createInterval, createTimer);
     endSimulationTimer = new cMessage("endSimulationTimer");
+
     measureJoinOpsTimer = new cMessage("measureJoinOpsTimer");
     scheduleAt(simTime() + 2, measureJoinOpsTimer);
     cOV_JoinerOps.setName("Number of join operations completed");
+
     globalStatistics = GlobalStatisticsAccess().get();
     globalNodesList = GlobalNodeListAccess().get();
-
 
     // logic parameters
     initPeriod = true;
@@ -61,7 +60,7 @@ void MyChurn::initializeChurn(){
 }
 
 
-void MyChurn::handleMessage(cMessage* msg){
+void MyIntermittentChurn::handleMessage(cMessage* msg){
 
     if(!msg->isSelfMessage()){
         delete msg;
@@ -99,7 +98,7 @@ void MyChurn::handleMessage(cMessage* msg){
                                     leavers--;
                                     killed++;
 
-                                    break; // break the for
+                                    break;
                                 }
                             }
                         }
@@ -119,13 +118,17 @@ void MyChurn::handleMessage(cMessage* msg){
                 joiners--;
                 joinOps++;
             }
-
             if (joiners > 0 && leavers > 0){
-                scheduleAt(simTime() + churnInterval, churnTimer);
-
+                if (doneRounds < rounds - 1){
+                    scheduleAt(simTime() + churnInterval, churnTimer);
+                    doneRounds ++;
+                } else {
+                    scheduleAt(simTime() + intervalBetweenChurnPeriods, churnTimer);
+                    doneRounds = 0;
+                }
             } else {
-                globalStatistics->addStdDev("MyChurn: Churn period ended -> ", simTime().dbl());
                 churnPeriod = false;
+                globalStatistics->addStdDev("MyIntermittentChurn: Churn period ended -> ", simTime().dbl());
                 scheduleAt(simTime() + endSimulationInterval, endSimulationTimer);
             }
 
@@ -169,7 +172,7 @@ void MyChurn::handleMessage(cMessage* msg){
 
             int i;
 
-            for(i=0; i <= joiners; i++){
+            for(i=0; i<=joiners; i++){
                 // create nodes
                 TransportAddress* ta = underlayConfigurator->createNode(type);
                 delete ta; // Address not needed in this churn model
@@ -177,9 +180,8 @@ void MyChurn::handleMessage(cMessage* msg){
                 joinOps++;
             }
 
-            // scheduleAt(simTime() + churnInterval, churnTimer);
             churnPeriod = false;
-            globalStatistics->addStdDev("MyChurn: Churn period ended -> ", simTime().dbl());
+            globalStatistics->addStdDev("MyIntermittentChurn: Churn period ended -> ", simTime().dbl());
             scheduleAt(simTime() + endSimulationInterval, endSimulationTimer);
         }
 
@@ -202,7 +204,7 @@ void MyChurn::handleMessage(cMessage* msg){
             // switch to churn period
             churnPeriod = true;
             scheduleAt(simTime(), churnTimer);  // TODO: Schedule right away the first churn? -> Yes, for now.
-            globalStatistics->addStdDev("MyChurn: Initialization period ended -> ", simTime().dbl());
+            globalStatistics->addStdDev("MyIntermittentChurn: Initialization period ended -> ", simTime().dbl());
         }
 
     } else if (msg == endSimulationTimer){
@@ -220,13 +222,13 @@ void MyChurn::handleMessage(cMessage* msg){
     }
 }
 
-void MyChurn::updateDisplayString(){
+void MyIntermittentChurn::updateDisplayString(){
     char buf[80];
-    sprintf(buf, "MyChurn");
+    sprintf(buf, "MyIntermittentChurn");
     getDisplayString().setTagArg("t", 0, buf);
 }
 
-MyChurn::~MyChurn(){
+MyIntermittentChurn::~MyIntermittentChurn(){
     cancelAndDelete(churnTimer);
     cancelAndDelete(createTimer);
     cancelAndDelete(endSimulationTimer);

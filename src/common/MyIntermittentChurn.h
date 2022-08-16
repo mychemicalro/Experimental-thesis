@@ -1,13 +1,13 @@
 /*
- * MyChurn.h
+ * MyIntermittentChurn.h
  *
- *  Created on: 27/dic/2021
+ *  Created on: 08/giu/2022
  *      Author: DinuFC
  */
 
+#ifndef MYINTERMITTENTCHURN_H_
+#define MYINTERMITTENTCHURN_H_
 
-#ifndef __MYCHURN_H_
-#define __MYCHURN_H_
 
 #include <ChurnGenerator.h>
 #include "GlobalNodeListAccess.h"
@@ -17,11 +17,11 @@
  * Churn generating class
  */
 
-class MyChurn: public ChurnGenerator{
+class MyIntermittentChurn: public ChurnGenerator {
     public:
         void handleMessage(cMessage* msg);
         void initializeChurn();
-        ~MyChurn();
+        ~MyIntermittentChurn();
 
     protected:
         void updateDisplayString();
@@ -30,9 +30,14 @@ class MyChurn: public ChurnGenerator{
         double churnInterval;
         double createInterval;
         double endSimulationInterval;
+        double intervalBetweenChurnPeriods;
+
         int churnRate;
         int joiners;
         int leavers;
+        int rounds;
+        int doneRounds;
+
         bool stopSimulation;
         int permanentNodes;
         int joinOps;
@@ -51,8 +56,8 @@ class MyChurn: public ChurnGenerator{
         bool stabilityPeriod;
 
         cOutVector cOV_JoinerOps;
-        cOutVector cOV_AvgConnectivity;
 
 };
 
-#endif
+
+#endif /* MYINTERMITTENTCHURN_H_ */

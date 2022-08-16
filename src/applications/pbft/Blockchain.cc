@@ -133,7 +133,7 @@ vector<Block> Blockchain::getBlocks(){
 void Blockchain::printChain(){
 
     stringstream ss;
-    ss << iter << "_" << overlayk->toString();
+    ss << "C:\\Users\\DinuFc\\Desktop\\tesi\\last-run\\" << iter << "_" << overlayk->toString();
 
     // generate external file name
     outfile.open(ss.str().c_str(), std::ios_base::trunc); // append instead of overwrite (app for append)
@@ -142,6 +142,8 @@ void Blockchain::printChain(){
     outfile << "Length: " << blockchain_length << "\n";
     outfile << "Operations: " << operations_number << "\n";
     if(blocks.size() > 0){
+        // This computation is wrong. I should sum up all the differences between the creation timestamps and the moment when
+        // the block has been added by this replica to its local copy of the blockchain.
         outfile << "Blocks latency: " << blocks.at(blocks.size()-1).getCreationTimestamp() / blockchain_length << "\n";
     }
     // print the blocks data

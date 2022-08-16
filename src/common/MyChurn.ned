@@ -16,7 +16,6 @@ simple MyChurn extends ChurnGenerator{
 		bool stopSimulation = default(true);
 		double endSimulationInterval @unit(s) = default(20s); // end the simulation after this amount of seconds (after start of the stability period)
 		int permanentNodes = default(0);
-		bool useLease = default(true);
 }
 
 
