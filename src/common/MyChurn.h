@@ -51,7 +51,6 @@ class MyChurn: public ChurnGenerator{
         bool stabilityPeriod;
 
         cOutVector cOV_JoinerOps;
-        cOutVector cOV_AvgConnectivity;
 
 };
 

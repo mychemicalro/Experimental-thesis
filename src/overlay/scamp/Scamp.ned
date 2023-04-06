@@ -1,41 +1,37 @@
 package oversim.overlay.scamp;
-
-// import BaseOverlay
 import oversim.common.BaseOverlay;
 import oversim.common.IOverlay;
 
-
 simple View {
     @display("i=block/table");
-	int maxSize = default(3);
+	int maxSize = default(3);						// Size of the view				
 }
 
-// there are a lot of gates and params that are inherited from BaseOverlay
 simple Scamp extends BaseOverlay {
     parameters:
         @class(Scamp);
-        double joinDelay @unit(s); // delay between join retries (sec)
-        double heartbeatDelay @unit(s); // delay between imAlive triggers (sec)
+        double joinDelay @unit(s); 					// number of seconds between join retries
+        double heartbeatDelay @unit(s); 			// number of seconds between heartbeat messages
         double pruneDelay @unit(s) = default(3s);
-        double heartbeatTimeout @unit(s); // delay after which a node is considered out of the inView
+        double heartbeatTimeout @unit(s); 			// number of seconds before a node is considered 
+        												//out of the inView
         int joinRetry;
-        int joinRequestCopies = default(3);
+        int joinRequestCopies = default(3);			// SCAMP parameter
         bool useHeartbeats = default(true);
         bool useCwhenLeaving = default(true);
 }
 
 
-// all messages that must be sent to scamp, will be sent to the wrapper instead
 module ScampOverlayModules like IOverlay {
     parameters:
         @display("i=block/network2");
         
     gates:
-        input udpIn;   // gate from the UDP layer
+        input udpIn;   	  // gate from the UDP layer
         output udpOut;    // gate to the UDP layer
-        input tcpIn;    // gate from the TCP layer
+        input tcpIn;      // gate from the TCP layer
         output tcpOut;    // gate to the TCP layer
-        input appIn;   // gate from the application
+        input appIn;      // gate from the application
         output appOut;    // gate to the application
 
     submodules:
