@@ -22,6 +22,13 @@ class Scamp : public BaseOverlay {
     double dropChance;       // we'll store the "dropChance" parameter here
 
 
+    enum Kinds {
+        KIND_READY = 1,
+        KIND_SHUTDOWN = 2,
+        KIND_DISCONNECTED = 3,
+
+    };
+
     int joinRequestCopies;
     bool useCwhenLeaving;
 
@@ -52,30 +59,9 @@ class Scamp : public BaseOverlay {
 
     virtual void handleUDPMessage(BaseOverlayMessage* msg);
 
-    virtual int getHeartbeatsSentLastPeriod();
-
-    virtual void resetHeartbeatsSentLastPeriod();
-
     virtual bool inViewEmpty();
     virtual bool partialViewEmpty();
 
-    /**
-     * Method called by MyChurn that sets the lease for this node.
-     * It will schedule a timer that will make it rejoin through a random
-     * node from its partialView. The partialView will stay intact. What about the inView?
-     */
-    virtual void setLease(NodeHandle& node, double tm);
-
-    /**
-     * Returns true if the lease operations of this node are completed.
-     * The lease operations are: remove the nodes from its partialView and rejoin
-     */
-    virtual bool completedLease();
-
-    /**
-     * Set the timer for the rejoin after the leasePeriod
-     */
-    virtual void rejoin(double tm);
 
     /**
      * Returns ready if state==READY
@@ -109,16 +95,12 @@ class Scamp : public BaseOverlay {
     cMessage* join_timer; /**< Timer to trigger the join action */
     cMessage* heartbeat_timer; /**< Timer to trigger the ImAlive messages */
     cMessage* pruneInView_timer;
-    cMessage* rejoinTimer;
 
-    bool leasing;
 
     bool useHeartbeats;
 
     // statistics stuff
     // cOutVector joinCallsReceived;
-    int totalHeartbeatsSent;
-    int heartbeatsSentLastPeriod;
     int numSent;              //number of packets sent
     int numSent_ADDEDTOPARTIALVIEW;
     int numSent_JOINREQUESTFORWARDED;
@@ -221,13 +203,12 @@ class Scamp : public BaseOverlay {
     virtual void gracefulLeave();
 
     /**
-     * Return up to k random nodes from the partialView
+     * Return up to k random nodes from the partialView, + the node itself
      */
     virtual NodeVector* neighborSet(int k);
 
     /**
-     * Handle message from app through sendDirect
-     * TODO maybe not need virtual
+     * Sends message to application (PBFT)
      *
      */
     void handleAppMessage(cMessage* msg);

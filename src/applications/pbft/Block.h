@@ -40,6 +40,9 @@ class Block {
         int getSeqNumber(){return seqNumber;}
         size_t getBlockOpsNumber(){return operations.size();}
         double getCreationTimestamp(){return creationTimestamp;}
+        void setCreationTimestamp(double t){ creationTimestamp = t; }
+        double getInsertionTimestamp(){return insertionTimestamp;}
+        void setInsertionTimestamp(double t){ insertionTimestamp = t; }
 
         //Setters
         void setSeqNumber(int sn){seqNumber = sn;}
@@ -69,6 +72,11 @@ class Block {
 
         bool containsOp(Operation& op);
 
+        /**
+         * Returns a vector with all ops contained in the block created by creator.
+         */
+        vector<Operation> getOpsByCreator(OverlayKey creator);
+
     private:
         string hash; // the block's hash
         string prevBlockHash; // the hash of the previous block appended in the blockchain
@@ -78,6 +86,7 @@ class Block {
         int viewNumber; // view number
 
         double creationTimestamp;
+        double insertionTimestamp;
 
         // The block must contain a list of <capacity> operations
         vector<Operation> operations;

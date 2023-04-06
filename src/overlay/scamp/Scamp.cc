@@ -33,7 +33,6 @@ Scamp::~Scamp() {
            << "    Destroying" << endl;
 
     cancelAndDelete(join_timer);
-    cancelAndDelete(rejoinTimer);
 
     if(useHeartbeats){
         cancelAndDelete(heartbeat_timer);
@@ -71,8 +70,6 @@ void Scamp::initializeOverlay(int stage) {
 
     // self messages
     join_timer = new cMessage("join_timer");
-    rejoinTimer = new cMessage("rejoinTimer");
-    leasing = false;
 
     if(useHeartbeats){
         heartbeat_timer = new cMessage("heartbeat_timer");
@@ -80,8 +77,6 @@ void Scamp::initializeOverlay(int stage) {
     }
 
     // statistics
-    totalHeartbeatsSent = 0;
-    heartbeatsSentLastPeriod = 0;
     numSent = 0;
     numReceived = 0;
     numSent_ADDEDTOPARTIALVIEW = 0;
@@ -95,10 +90,7 @@ void Scamp::initializeOverlay(int stage) {
     WATCH(joinRetry);
     WATCH(joinDelay);
     WATCH(joinRequestCopies);
-    WATCH(totalHeartbeatsSent);
-    WATCH(heartbeatsSentLastPeriod);
     WATCH(useCwhenLeaving);
-    WATCH(leasing);
     WATCH(numSent);
     WATCH(numReceived);
 
@@ -149,8 +141,6 @@ void Scamp::changeState(int toState) {
 
             // initiate join process
 
-
-
             cancelEvent(join_timer);
             // workaround: prevent notificationBoard from taking ownership of join_timer message
             // take(join_timer);
@@ -159,7 +149,7 @@ void Scamp::changeState(int toState) {
 
             getParentModule()->getParentModule()->bubble("Enter JOIN state.");
 
-            if(!leasing || partialViewModule->isEmpty()){
+            if(partialViewModule->isEmpty()){
                 // find a new bootstrap node and enroll to the bootstrap list
                 bootstrapNode = bootstrapList->getBootstrapNode(overlayId);
 
@@ -177,9 +167,8 @@ void Scamp::changeState(int toState) {
 
             break;
 
-        case READY:
+        case READY: {
             state = READY;
-            // send CompReadyMessage to all registered components and modifies GUI
 
             if(DEBUG)
                 EV << "[Scamp::changeState() @ " << thisNode.getIp()
@@ -188,7 +177,7 @@ void Scamp::changeState(int toState) {
                     << endl;
 
             setOverlayReady(true);
-            getParentModule()->getParentModule()->bubble("Enter READY state.");
+            // getParentModule()->getParentModule()->bubble("Enter READY state.");
 
             // Now I can send imAlive messages and pruneInView
 
@@ -205,10 +194,16 @@ void Scamp::changeState(int toState) {
                 scheduleAt(simTime() + pruneDelay, pruneInView_timer);
             }
 
-            if (leasing)
-                leasing = false;
+            // Alert the PBFT layer
+            cPacket* ready = new cPacket("KIND_READY", KIND_READY);
+            handleAppMessage(ready);
+            if(DEBUG){
+                EV << "Partial view size: " << partialViewModule->getSize() << endl;
+                EV << "InView size: " << inViewModule->getSize() << endl;
+            }
 
             break;
+        }
 
         case DISCONNECTED:{
             state = DISCONNECTED;
@@ -220,21 +215,24 @@ void Scamp::changeState(int toState) {
 
             getParentModule()->getParentModule()->bubble("Enter DISCONNECTED state.");
 
-            if (!leasing){
-                // delete other arrows
-                std::vector<NodeHandle> nodes = partialViewModule->getNodeHandles();
-                for(int i=0; i<(int)nodes.size(); i++){
-                    deleteOverlayNeighborArrow(nodes.at(i));
-                }
 
-                partialViewModule->clearView();
+            // delete other arrows
+            std::vector<NodeHandle> nodes = partialViewModule->getNodeHandles();
+            for(int i=0; i<(int)nodes.size(); i++){
+                deleteOverlayNeighborArrow(nodes.at(i));
             }
+
+            partialViewModule->clearView();
+
 
             inViewModule->clearView(); // Not useful
             joinRetry = par("joinRetry");
 
             // take(join_timer);
-            scheduleAt(simTime() + joinDelay, join_timer);
+            if(! join_timer->isScheduled()){
+                scheduleAt(simTime() + joinDelay, join_timer);
+            }
+            // scheduleAt(simTime() + joinDelay, join_timer);
             setOverlayReady(false);
 
             break;
@@ -266,9 +264,6 @@ void Scamp::changeState(int toState) {
             if (join_timer->isScheduled()){
                cancelEvent(join_timer);
             }
-            if (rejoinTimer->isScheduled()){
-               cancelEvent(rejoinTimer);
-            }
 
             break;
     }
@@ -291,9 +286,6 @@ void Scamp::handleTimerEvent(cMessage* msg) {
         // schedule next pruning process
         cancelEvent(pruneInView_timer);
         scheduleAt(simTime() + pruneDelay, pruneInView_timer);
-
-    } else if(msg == rejoinTimer) {
-        changeState(DISCONNECTED);
 
     } else if (msg->hasPar("RemoveNode")){
         cArray pars = msg->getParList();
@@ -325,9 +317,6 @@ void Scamp::handleJoinTimerExpired(cMessage* msg) {
         changeState(JOIN);
 
     if (joinRetry == 0) {
-        if(leasing){ // I have already tried different times to join, but I cannot through my partialView
-            partialViewModule->clearView();
-        }
         changeState(DISCONNECTED);
         return;
     }
@@ -374,23 +363,12 @@ void Scamp::handleHeartbeatTimerExpired(cMessage* msg){
         NodeHandle dest = partialViewModule->getMember(i);
         ScampMessage* heartbeat = new ScampMessage("Heartbeat");
         heartbeat->setBitLength(SCAMP_MESSAGE_L(heartbeat));
-
-        if (isLeaf() && 1==0){ // TODO
-            heartbeat->setCommand(HEARTBEAT_FROM_LEAF);
-            if(DEBUG)
-                EV << "Sent HEARTBEAT_FROM_LEAF" << endl;
-
-        } else {
-            heartbeat->setCommand(HEARTBEAT);
-        }
-
+        heartbeat->setCommand(HEARTBEAT);
         heartbeat->setNode(thisNode);
+
         // notify it about this
         sendMessageToUDP(dest, heartbeat);
         numSent++;
-
-        totalHeartbeatsSent++;
-        heartbeatsSentLastPeriod++;
     }
 }
 
@@ -425,7 +403,7 @@ void Scamp::handlePruneInViewTimerExpired(cMessage* msg){
 
     // check if inView is empty or partialViewModule is empty. If yes, change state to DISCONNECTED. For now, I won't consider the partialView being empty
 
-    if(inViewModule->isEmpty() && !leasing){
+    if(inViewModule->isEmpty()){
 
         if(DEBUG)
             EV << "Empty inView -> DISCONNECTED"
@@ -434,25 +412,6 @@ void Scamp::handlePruneInViewTimerExpired(cMessage* msg){
         changeState(DISCONNECTED);
 
     }
-
-    /* else if (partialViewModule->isEmpty()){
-        // Connect to a random node from my inView
-        if(DEBUG)
-            EV << "Empty partialView -> Join some node from the inView"
-               << endl;
-
-        std::vector<NodeHandle> nodes = inViewModule->getRandomNodes(joinRequestCopies);
-
-        ScampMessage* message = new ScampMessage("ScampMessage");
-        message->setCommand(ADDEDTOPARTIALVIEW);
-        message->setNode(thisNode);
-
-        // notify it about this
-        sendMessageToUDP(nodes[0], message);
-        partialViewModule->addMember(nodes[0]);
-        showOverlayNeighborArrow(nodes[0], false, "m=m,50,0,50,0;ls=red,1");
-
-    }*/ // TODO
 }
 
 void Scamp::rpcJoin(ScampJoinCall* joinCall) {
@@ -487,10 +446,6 @@ void Scamp::rpcJoin(ScampJoinCall* joinCall) {
 
     seenNodesModule->addMember(requester);
 
-    // Log the join message
-    // outfile.open("results\\JoinMessages.log", std::ios_base::app); // append instead of overwrite
-    // outfile << joinCall->getAddress() << ";JOIN_CALL;" << simTime() << ";" << thisNode.getIp() << "\n";
-    // outfile.close();
 
     ScampJoinResponse* joinResponse = new ScampJoinResponse("JoinResponse");
 
@@ -1044,6 +999,13 @@ void Scamp::handleNodeGracefulLeaveNotification(){
     inViewModule->clearView();
     partialViewModule->clearView();
 
+    // notify PBFT
+    cPacket* shutdown = new cPacket("KIND_SHUTDOWN", KIND_SHUTDOWN);
+    handleAppMessage(shutdown);
+    if(DEBUG){
+        EV << "Notify the application about shutdown. " << endl;
+    }
+
     changeState(SHUTDOWN);
 
 }
@@ -1118,15 +1080,6 @@ void Scamp::handleReplaceMeMessage(LeaveMessage* m){
 }
 
 
-int Scamp::getHeartbeatsSentLastPeriod(){
-    return heartbeatsSentLastPeriod;
-}
-
-
-void Scamp::resetHeartbeatsSentLastPeriod(){
-    heartbeatsSentLastPeriod = 0;
-}
-
 bool Scamp::inViewEmpty(){
     return inViewModule->isEmpty();
 }
@@ -1135,38 +1088,6 @@ bool Scamp::partialViewEmpty(){
     return partialViewModule->isEmpty();
 }
 
-void Scamp::setLease(NodeHandle& node, double tm){
-    Enter_Method_Silent();
-    if(DEBUG)
-        EV << "[Scamp::setLease() @ " << thisNode.getIp()
-           << " (" << thisNode.getKey().toString(16) << ")]\n"
-           << " Got in input node: " << node.getKey()
-           << " Delay: " << tm
-           << endl;
-
-    // Launch a timer each time I am being called
-    cMessage* leaseTimer = new cMessage("Remove from partial view");
-    leaseTimer->addPar("RemoveNode");
-    leaseTimer->addPar(node.getKey().toString().c_str());
-    scheduleAt(simTime() + tm, leaseTimer);
-
-}
-
-bool Scamp::completedLease(){
-    return !leasing;
-}
-
-void Scamp::rejoin(double tm){
-    Enter_Method_Silent();
-    if(DEBUG)
-        EV << "[Scamp::rejoin() @ " << thisNode.getIp()
-           << " (" << thisNode.getKey().toString(16) << ")]\n"
-           << " Rejoin after delay: " << tm
-           << endl;
-
-    scheduleAt(simTime() + tm, rejoinTimer);
-    leasing = true;
-}
 
 bool Scamp::isReady(){
     if (state == READY){
@@ -1186,6 +1107,7 @@ bool Scamp::isLeaf(){
     return false;
 }
 
+// Unused
 void Scamp::route(const OverlayKey& key, CompType destComp, CompType srcComp, cPacket* msg, const std::vector<TransportAddress>& sourceRoute, RoutingType routingType){
     if(DEBUG)
         EV << "[Scamp::route() @ " << thisNode.getIp()
@@ -1220,7 +1142,6 @@ void Scamp::handleAppMessage(cMessage* msg){
            << " (" << thisNode.getKey().toString(16) << ")]\n"
            << endl;
 
-    // TODO add delay?
     send(msg, "appOut");
 
 }

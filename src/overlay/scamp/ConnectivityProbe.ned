@@ -21,7 +21,7 @@ import oversim.common.IGlobalFunctions;
 simple ScampConnectivityProbe {
     parameters: 
         double connectivityProbeInterval @unit(s); // interval after which to check connectivity
-        
+        int dag_id = default(0);  // used to create the DAG file 
         @display("i=block/network2");
 }
 

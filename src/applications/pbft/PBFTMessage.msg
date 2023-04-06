@@ -29,12 +29,14 @@ static const int RETRYNUMBER_L = 8;
 #define PBFTCOMMIT(msg) (PBFTMESSAGE_L(msg) + VIEW_L + SEQNUMBER_L + DIGEST_L)
 #define PBFTREPLY(msg) (PBFTMESSAGE_L(msg) + VIEW_L + OPRESULT_L + OPERATION_L + KEY_L)
 #define PBFTCHECKPOINT(msg) (PBFTMESSAGE_L(msg) + DIGEST_L + SEQNUMBER_L)
+#define PBFTUPDATE(msg) (PBFTMESSAGE_L(msg) + 6 * SEQNUMBER_L)
+#define PBFTUPDATEREQUEST(mgs)  (PBFTMESSAGE_L(msg))
 
 }}
 class noncobject TransportAddress;            // noncobject means it's not a message class.
 class noncobject OverlayKey;            	  // noncobject means it's not a message class.
 class noncobject Operation;            		  // noncobject means it's not a message class.
-class noncobject Block;            		  // noncobject means it's not a message class.
+class noncobject Block;            		      // noncobject means it's not a message class.
 
 // First, we declare an enum for the message type:
 // Enumerations in messages MUST have a value.
@@ -46,6 +48,8 @@ enum MessageType {
 	COMMIT = 4;
 	REPLY = 5;
 	CHECKPOINT = 6;
+	UPDATE = 7;
+	UPDATE_REQUEST = 8;
 }
 
 // now we declare the message proper
@@ -90,8 +94,6 @@ packet PBFTReplyMessage extends PBFTMessage {
 	type = REPLY;
 	int view;
 	OverlayKey replicaNumber; 							// replica number
-	// int operationResult; 								// the result of the operation TODO
-	// Operation op;
 	Block block;
 }
 
@@ -99,6 +101,20 @@ packet PBFTCheckpointMessage extends PBFTMessage {
     type = CHECKPOINT;
     int seqNumber;
     string digest;
+}
+
+packet PBFTUpdateMessage extends PBFTMessage {
+    type = UPDATE;
+    int seqNumber;
+    int view;
+    int lowH;
+    int highH;
+    int blockchain_length;
+    int blockchainModuleId;
+}
+
+packet PBFTUpdateRequestMessage extends PBFTMessage {
+    type = UPDATE_REQUEST;
 }
 
 

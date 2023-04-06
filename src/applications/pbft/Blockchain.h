@@ -14,7 +14,9 @@
 #include <InitStages.h>
 #include "Block.h"
 #include "GlobalStatisticsAccess.h"
-
+#include <fstream>
+#include <sstream>
+#include <iostream>
 
 /**
  * This class must store a node's blockchain.
@@ -30,6 +32,10 @@ public:
     virtual int numInitStages() const {
         return MAX_STAGE_OVERLAY + 1;
     }
+
+    int getBlockchainLength() { return blockchain_length; }
+
+    int getBlockchainId(){ return getId(); }
 
     // initialize parameters and data structure
     virtual void initializeChain(const OverlayKey* ok);
@@ -59,6 +65,24 @@ public:
      */
     Block& getBlockByIndex(size_t i);
 
+    /**
+     * clears the blockchain and adds the blocks in input.
+     */
+    void updateBlockchain(vector<Block> otherBlocks);
+
+    vector<Block> getBlocks();
+
+    /**
+     * Prints the blockchain stored on this node on an external file.
+     *
+     */
+    void printChain();
+
+    /**
+     * Returns true if there are missing blocks in the blockchain up to seqNum
+     */
+    bool missingBlocks(int seqNum);
+
 
 protected:
 
@@ -77,9 +101,14 @@ private:
     vector<Block> blocks;
     const OverlayKey* overlayk;
     int blockchain_length; /* Blockchain length */
-    int operations_number; /* Number of ops stored in the blockchain*/
+    int operations_number; /* Number of ops stored in the blockchain */
+    double creation_time; /* When this blockchain was created by this node */
 
     GlobalStatistics* globalStatistics;
+
+    std::ofstream outfile;
+
+    int iter;
 
 };
 

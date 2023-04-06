@@ -20,8 +20,7 @@ class PBFT : public BaseApp {
     int numSent;              //number of packets sent
     int numReceived;          //number of packets received
 
-    // our timer
-    cMessage *joinTimer;
+    // our timers
     cMessage *clientTimer;  // timer to send messages as a client
     cMessage *replyTimer;  // timer after which a client resends the request
 
@@ -60,7 +59,6 @@ class PBFT : public BaseApp {
 
 public:
     PBFT() {
-        joinTimer = NULL;
         clientTimer = NULL;
         chainModule = NULL;
         replicaStateModule = NULL;
@@ -68,9 +66,10 @@ public:
     };
 
     ~PBFT() {
-        cancelAndDelete(joinTimer);
-        cancelAndDelete(clientTimer);
-
+        if (nodeType == REPLICAANDCLIENT){
+            cancelAndDelete(clientTimer);
+            cancelAndDelete(replyTimer);
+        }
     };
 
     enum States {
@@ -90,6 +89,13 @@ public:
     enum OpResults{
         OK = 1,
         KO = 0,
+    };
+
+    enum Kinds {
+        KIND_READY = 1,
+        KIND_SHUTDOWN = 2,
+        KIND_DISCONNECTED = 3,
+
     };
 
 
@@ -124,12 +130,23 @@ public:
 
     void handleCheckpointMessage(cMessage* msg);
 
+    void handleUpdateRequestMessage(cMessage* msg);
+
+    void handleUpdateMessage(cMessage* msg);
+
     void onDemandPrePrepare(PBFTRequestMessage* req);
 
     void onDemandCommit(int sn);
 
     void createCheckpoint(int sn);
 
+    /**
+     * Add the first block to the blockchain, since this method is
+     * called by the first node in the network
+     */
+    void addFirstBlock();
+
+    void updateMessageStats(PBFTMessage* m);
 
 protected:
     // Class attributes
@@ -156,6 +173,21 @@ protected:
     int numCommits;
     int numReplies;
     int numCheckpoints;
+    int numUpdates;
+    int numUpdateRequests;
+
+    int numCreatedRequests;
+    int numFulfilledRequests;
+    int numCreatedBlocks;
+
+    int simDuration;
+    int endRequestsLoad;
+
+    bool justJoined;
+    bool reJoined;
+
+    cOutVector creationTimestamps;
+
 
 };
 

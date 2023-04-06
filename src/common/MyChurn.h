@@ -42,7 +42,6 @@ class MyChurn: public ChurnGenerator{
         cMessage* createTimer;
         cMessage* endSimulationTimer;
         cMessage* measureJoinOpsTimer;
-        cMessage* leaseTimer;
 
         GlobalStatistics* globalStatistics;
         GlobalNodeList* globalNodesList;
@@ -50,11 +49,8 @@ class MyChurn: public ChurnGenerator{
         bool initPeriod;
         bool churnPeriod;
         bool stabilityPeriod;
-        bool leasePeriod;
-        bool leaseStarted;
 
         cOutVector cOV_JoinerOps;
-        cOutVector cOV_AvgConnectivity;
 
 };
 

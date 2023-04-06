@@ -21,7 +21,6 @@ View* ScampTopologyNode::getView() const {
 void ScampConnectivityProbe::initialize(){
     globalStatistics = GlobalStatisticsAccess().get();
     globalNodesList = GlobalNodeListAccess().get();
-    // globalParameters = GlobalParametersAccess().get();
 
     avgPartialViewSize = 0;
     avgInViewSize = 0;
@@ -30,6 +29,8 @@ void ScampConnectivityProbe::initialize(){
     probeInterval = par("connectivityProbeInterval");
     probeTimer = new cMessage("probeTimer");
     R = 0;
+    dag_id = par("dag_id");
+    ss << "C:\\Users\\DinuFc\\Desktop\\tesi\\last-run\\" << dag_id << "_DAG";
 
     WATCH(R);
     WATCH(avgPartialViewSize);
@@ -45,16 +46,11 @@ void ScampConnectivityProbe::initialize(){
         cOV_AvgConnectivity.setName("Average connectivity");
         cOV_InitialNodes.setName("Percentage of initial nodes still in the overlay");
         cOV_WeakComponents.setName("Number of weak components of the overlay");
-        cOV_TotalHeartbeats.setName("Number of heartbeats sent each measurement period");
-        cOV_emptyInView.setName("Number of nodes with empty inView");
-        cOV_emptyPartialView.setName("Number of nodes with empty partialView");
-        cOV_emptyBothViews.setName("Number of nodes with both views empty");
         cOV_avgPartialViewSize.setName("Average partialViews size");
-        cOV_avgInViewSize.setName("Average inViews size");
-        cOV_LeafsNumber.setName("Number of leave nodes in the overlay");
+        cOV_LeafsNumber.setName("Number of leaf nodes in the overlay");
 
-        outfile.open("results\\DAG.log", std::ios_base::trunc); // append instead of overwrite
-        // outfile << "Starting run at simTime(): " << simTime() << "\n";
+        // generate external file name
+        outfile.open(ss.str().c_str(), std::ios_base::trunc); // append instead of overwrite (app for append)
         outfile.close();
     }
 }
@@ -93,10 +89,10 @@ void ScampConnectivityProbe::computeData(){
     unsigned int maxComponent = 0;
     unsigned int totalCount = 0; // used for the average connectivity
     unsigned int initialNodes = 0; // number of initial nodes still in the overlay
-    int totalHeartbeats = 0;
     leafNodes = 0;
     avgPartialViewSize = 0;
-    outfile.open("results\\DAG.log", std::ios_base::app);
+
+    outfile.open(ss.str().c_str(), std::ios_base::app);
     outfile << "Starting run at simTime(): " << simTime() << "\n";
 
     for (ScampTopology::iterator itTopology = Topology.begin(); itTopology != Topology.end(); ++itTopology) {
@@ -116,14 +112,9 @@ void ScampConnectivityProbe::computeData(){
         // since I am iterating all partialViews ...
         // - Write DAG
         std::vector<NodeHandle> nodes = itTopology->second.getView()->getNodeHandles(); // These are the nodeHandles in the partialView
-
         for(int i=0; i<(int)nodes.size(); i++){
             outfile << itTopology->second.getView()->getOwnerNode().getKey() << ";" << nodes.at(i).getKey() << "\n";
         }
-
-        // Trace heartbeats
-        totalHeartbeats += itTopology->second.getView()->getOverlay().getHeartbeatsSentLastPeriod();
-        itTopology->second.getView()->getOverlay().resetHeartbeatsSentLastPeriod();
 
         // Trace leaf nodes
         if (itTopology->second.getView()->getOverlay().isLeaf()){
@@ -136,6 +127,7 @@ void ScampConnectivityProbe::computeData(){
     }
 
     outfile.close();
+
 
     unsigned int weakComponents = 0;
     for (ScampTopology::iterator inTop = InTopology.begin(); inTop != InTopology.end(); ++inTop) {
@@ -154,11 +146,9 @@ void ScampConnectivityProbe::computeData(){
     cOV_AvgConnectivity.record((((double)totalCount / ((double)Topology.size())) * 100.0 ) / (double)Topology.size());
     cOV_InitialNodes.record((double) initialNodes * 100.0 / (double)Topology.size());
     cOV_WeakComponents.record(weakComponents);
-    cOV_TotalHeartbeats.record(totalHeartbeats);
     cOV_avgPartialViewSize.record(avgPartialViewSize);
     cOV_LeafsNumber.record(leafNodes);
 
-    recordInViewsSize();
 
     Topology.clear();
     InTopology.clear();
@@ -249,71 +239,11 @@ void ScampConnectivityProbe::extractPartialViewTopology(){
 }
 
 void ScampConnectivityProbe::finish(){
-
     computeData();
-    return;
-
-/*  // Clusters count
- *
-    std::string cluster = "(Final value) Cluster nr. ";
-    std::string sz = " size: ";
-    std::string res;
-    unsigned int weakComponents = 0;
-    int componentSize;
-    std::stringstream sstm;
-    for(ScampTopology::iterator inTop = InTopology.begin(); inTop != InTopology.end(); ++inTop) {
-
-        componentSize = 0;
-        if(inTop->second.visited == false){
-            componentSize = getWeakComponents(inTop->second.getView()->getOwnerNode().getKey());
-            weakComponents ++;
-            sstm << cluster << weakComponents << sz;
-            res = sstm.str();
-            globalStatistics->addStdDev(res, componentSize);
-            sstm.str("");
-        }
-    }
-    */
-
 }
 
 
-void ScampConnectivityProbe::traceViews(){
-    int emptyInViews = 0;
-    int emptyPartialViews = 0;
-    int emptyBothViews = 0;
 
-    for(int i=0; i<=simulation.getLastModuleId(); i++){
-        cModule* module = simulation.getModule(i);
-        if(module && dynamic_cast<Scamp*>(module)) {
-            Scamp* v = check_and_cast<Scamp*>(module);
-            if (v->inViewEmpty() && v->partialViewEmpty()){
-                emptyBothViews++;
-            } else if (v->inViewEmpty()){
-                emptyInViews++;
-            } else if (v->partialViewEmpty()){
-                emptyPartialViews++;
-            }
-        }
-    }
-
-    cOV_emptyInView.record(emptyInViews);
-    cOV_emptyPartialView.record(emptyPartialViews);
-    cOV_emptyBothViews.record(emptyBothViews);
-}
-
-
-void ScampConnectivityProbe::recordInViewsSize(){
-    avgInViewSize = 0;
-
-    for(ScampTopology::iterator Top = InTopology.begin(); Top != InTopology.end(); ++Top) {
-        avgInViewSize += Top->second.getView()->getSize();
-    }
-
-    avgInViewSize = avgInViewSize / InTopology.size();
-    cOV_avgInViewSize.record(avgInViewSize);
-
-}
 
 
 

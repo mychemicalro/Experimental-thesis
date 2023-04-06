@@ -17,6 +17,9 @@ Operation::Operation(OverlayKey ok, IPvXAddress ip, simtime_t ts){
     originator = make_pair(ok, ip);
     hash = cHash();
 }
+Operation::~Operation(){
+    delete &originator;
+}
 
 //copy constructor
 Operation::Operation( const Operation& operation ) {
@@ -40,5 +43,6 @@ string Operation::cHash() const {
     ss << op << originator.second.str();
     return sha256(ss.str());
 }
+
 
 

@@ -9,12 +9,18 @@
 #include "Block.h"
 #include "sha256.h"
 
-#define DEBUG false
+#define DEBUG true
 
 Block::Block(int c){
+    stringstream ss;
+    ss << "pre_hash";
+    prevBlockHash = sha256(ss.str());
+
     capacity = c;
     seqNumber = 0;
     creationTimestamp = simTime().dbl();
+    insertionTimestamp = 0;
+    hash = computeHash(); // -> initial hash, won't be the final one.
 }
 
 Block::Block(){}
@@ -28,7 +34,7 @@ string Block::computeHash() {
         ss << operations.at(i).cHash();
     }
 
-    ss << prevBlockHash;
+    ss << prevBlockHash << creationTimestamp;
     hash = sha256(ss.str());
 
     return hash;
@@ -41,6 +47,7 @@ void Block::addOperation(Operation& op){
 
     if(!containsOp(op)){
         operations.push_back(op);
+        computeHash();
     }
 }
 
@@ -70,6 +77,7 @@ Block::Block( const Block& block ){
     prevBlockHash = block.prevBlockHash;
     operations = block.operations;
     creationTimestamp = block.creationTimestamp;
+    insertionTimestamp = block.insertionTimestamp;
 }
 
 bool Block::containsOp(Operation& op){
@@ -79,4 +87,19 @@ bool Block::containsOp(Operation& op){
         }
     }
     return false;
+}
+
+vector<Operation> Block::getOpsByCreator(OverlayKey creator){
+    vector<Operation> res;
+
+    for(size_t i=0; i<operations.size(); i++){
+        if (operations.at(i).getOriginatorKey() == creator){
+            res.push_back(operations.at(i));
+        }
+    }
+
+    if (DEBUG)
+        EV << "Operations found by creator in this block: " << res.size() << endl;
+
+    return res;
 }

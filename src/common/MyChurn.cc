@@ -20,7 +20,7 @@ Define_Module(MyChurn);
  * I need to simulate the paper experiment.
  * Need to have three phases, init, churn and stability.
  * In the init phase I will create the overlay reaching N nodes.
- * Then I will apply the churning with some churnRate C. Then, optionally I have the lease period.
+ * Then I will apply the churning with some churnRate C.
  * Finally, I will have a stability period.
  */
 
@@ -35,22 +35,13 @@ void MyChurn::initializeChurn(){
     leavers = par("leavers");
     stopSimulation = par("stopSimulation");
     permanentNodes = par("permanentNodes");
-    useLease = par("useLease");
-
     churnTimer = new cMessage("churnTimer");
-
     createTimer = new cMessage("createTimer");
     scheduleAt(simTime() + createInterval, createTimer);
-
     endSimulationTimer = new cMessage("endSimulationTimer");
-
     measureJoinOpsTimer = new cMessage("measureJoinOpsTimer");
-    scheduleAt(simTime() + 10, measureJoinOpsTimer);
-
-    leaseTimer = new cMessage("leaseTimer");
-
+    scheduleAt(simTime() + 2, measureJoinOpsTimer);
     cOV_JoinerOps.setName("Number of join operations completed");
-
     globalStatistics = GlobalStatisticsAccess().get();
     globalNodesList = GlobalNodeListAccess().get();
 
@@ -58,10 +49,7 @@ void MyChurn::initializeChurn(){
     // logic parameters
     initPeriod = true;
     churnPeriod = false;
-    leasePeriod = false;
-    leaseStarted = false;
     stabilityPeriod = false;
-
 
     joinOps = 0;
 
@@ -69,7 +57,6 @@ void MyChurn::initializeChurn(){
     WATCH(joiners);
     WATCH(initPeriod);
     WATCH(churnPeriod);
-    WATCH(leasePeriod);
     WATCH(stabilityPeriod);
 }
 
@@ -133,13 +120,20 @@ void MyChurn::handleMessage(cMessage* msg){
                 joinOps++;
             }
 
-            scheduleAt(simTime() + churnInterval, churnTimer);
+            if (joiners > 0 && leavers > 0){
+                scheduleAt(simTime() + churnInterval, churnTimer);
+
+            } else {
+                globalStatistics->addStdDev("MyChurn: Churn period ended -> ", simTime().dbl());
+                churnPeriod = false;
+                scheduleAt(simTime() + endSimulationInterval, endSimulationTimer);
+            }
 
         } else if(joiners > 0 && leavers > 0){
 
             // kill a node iff not in the permanents one
             int killed = 0;
-            while (killed < leavers){
+            while (killed <= leavers){
 
                 try {
                     TransportAddress* addr = globalNodesList->getRandomAliveNode(type.typeID);
@@ -175,7 +169,7 @@ void MyChurn::handleMessage(cMessage* msg){
 
             int i;
 
-            for(i=0; i<joiners; i++){
+            for(i=0; i <= joiners; i++){
                 // create nodes
                 TransportAddress* ta = underlayConfigurator->createNode(type);
                 delete ta; // Address not needed in this churn model
@@ -183,21 +177,10 @@ void MyChurn::handleMessage(cMessage* msg){
                 joinOps++;
             }
 
-            scheduleAt(simTime() + churnInterval, churnTimer);
-
-        } else {
-
+            // scheduleAt(simTime() + churnInterval, churnTimer);
             churnPeriod = false;
-
             globalStatistics->addStdDev("MyChurn: Churn period ended -> ", simTime().dbl());
-
-            if (useLease){
-                leasePeriod = true;
-                scheduleAt(simTime() + 20, leaseTimer);
-
-            } else {
-                scheduleAt(simTime() + endSimulationInterval, endSimulationTimer);
-            }
+            scheduleAt(simTime() + endSimulationInterval, endSimulationTimer);
         }
 
     } else if (msg == createTimer){
@@ -218,13 +201,11 @@ void MyChurn::handleMessage(cMessage* msg){
 
             // switch to churn period
             churnPeriod = true;
-            scheduleAt(simTime()+ churnInterval, churnTimer);
+            scheduleAt(simTime(), churnTimer);  // TODO: Schedule right away the first churn? -> Yes, for now.
             globalStatistics->addStdDev("MyChurn: Initialization period ended -> ", simTime().dbl());
         }
 
     } else if (msg == endSimulationTimer){
-        // When to stop the simulation? -> joiners and leavers were processed -> churn period ended
-
         cancelEvent(endSimulationTimer);
         endSimulation();
 
@@ -232,101 +213,7 @@ void MyChurn::handleMessage(cMessage* msg){
 
         cancelEvent(measureJoinOpsTimer);
         cOV_JoinerOps.record(joinOps);
-        scheduleAt(simTime() + 10, measureJoinOpsTimer);
-
-    } else if(msg == leaseTimer) {
-
-            if (!leaseStarted){
-                // let the games begin
-                leaseStarted = true;
-
-                // It will contain N pairs, with the leaseDelay of each node.
-                std::map<NodeHandle, double> data;
-
-                for(int i=0; i<=simulation.getLastModuleId(); i++){
-                    cModule* module = simulation.getModule(i);
-                    if(module && dynamic_cast<View*>(module)) {
-                        View* v = check_and_cast<View*>(module);
-
-                        // need only the inView
-                        if(v->getMaxSize() == 0 && v->getOwnerNode().getKey().isUnspecified() == 0){
-                            double randomDelay = uniform(0, 1000); // decide the upper value of the interval
-                            // EV << "Node: " << v->getOwnerNode().getIp() << " lease expires in: " << randomDelay << " seconds" << endl;
-                            data.insert(std::pair<NodeHandle, double>(v->getOwnerNode(), randomDelay));
-                            Scamp& ol = v->getOverlay();
-                            ol.rejoin(randomDelay);
-                        }
-                    }
-                }
-
-                /**
-                 * For each partialView
-                 *      I get the overlay
-                 *      for each node in the partialView
-                 *          set the leaseDelay invoking an overlay method
-                 */
-                for(int i=0; i<=simulation.getLastModuleId(); i++){
-                    cModule* module = simulation.getModule(i);
-                    if(module && dynamic_cast<View*>(module)) {
-                        View* v = check_and_cast<View*>(module);
-
-                        // now I consider partialViews
-                        if(v->getMaxSize() > 0 && v->getMaxSize() < 42 && v->getOwnerNode().getKey().isUnspecified() == 0){
-                            Scamp& ol = v->getOverlay();
-
-                            std::vector<NodeHandle> nodes = v->getNodeHandles();
-                            for(int i=0; i<(int)nodes.size(); i++){
-                                // It may be that a node that is in someone's partialView does not exists anymore, not having an inView
-                                // therefore not being present in data.
-                                try {
-                                   ol.setLease(nodes.at(i), data.at(nodes.at(i)));
-
-                                } catch (const std::out_of_range& oor) {
-
-                                }
-
-                            }
-                        }
-                    }
-                }
-
-            } else {
-                // Check if lease is done
-                // For each overlay
-                //      call the completedLease() method
-                bool completed = true;
-
-                for(int i=0; i<=simulation.getLastModuleId(); i++){
-                    cModule* module = simulation.getModule(i);
-                    if(module && dynamic_cast<Scamp*>(module)) {
-                        Scamp* v = check_and_cast<Scamp*>(module);
-                        if (!v->completedLease()){
-                            completed = false;
-                            break;
-                        }
-                    }
-                }
-
-                if (completed){
-                    leasePeriod = false;
-                    globalStatistics->addStdDev("MyChurn: Lease period ended -> ", simTime().dbl());
-                }
-            }
-
-            if (!leasePeriod){
-                // when leasePeriod ends
-                stabilityPeriod = true;
-
-                // set the end of the simulation
-                if(stopSimulation){
-                    scheduleAt(simTime() + endSimulationInterval, endSimulationTimer);
-                }
-
-            } else {
-                // reschedule this
-                scheduleAt(simTime() + 5, leaseTimer);
-            }
-
+        scheduleAt(simTime() + 2, measureJoinOpsTimer);
 
     } else {
         EV << "Message type not supported" << endl;
@@ -344,7 +231,6 @@ MyChurn::~MyChurn(){
     cancelAndDelete(createTimer);
     cancelAndDelete(endSimulationTimer);
     cancelAndDelete(measureJoinOpsTimer);
-    cancelAndDelete(leaseTimer);
 }
 
 
